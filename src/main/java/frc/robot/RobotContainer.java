@@ -20,6 +20,14 @@ import frc.robot.subsystems.drive.DriveConstants;
 import frc.robot.subsystems.drive.DriveIOHardware;
 import frc.robot.subsystems.drive.DriveIOSim;
 import frc.robot.subsystems.drive.DriveSubsystem;
+import frc.robot.subsystems.indexer.Indexer;
+import frc.robot.subsystems.indexer.IndexerIOReal;
+import frc.robot.subsystems.indexer.IndexerIOSim;
+import frc.robot.subsystems.intake.Intake;
+import frc.robot.subsystems.intake.IntakeIOReal;
+import frc.robot.subsystems.intake.IntakeIOSim;
+import frc.robot.subsystems.superstructure.Superstructure;
+import frc.robot.subsystems.superstructure.SuperstructureConstants;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
 import frc.robot.subsystems.vision.VisionIOHardwareLimelight;
 import frc.robot.subsystems.vision.VisionIOSimPhoton;
@@ -46,6 +54,9 @@ public class RobotContainer {
 
     private final DriveSubsystem driveSubsystem = buildDriveSystem();
     private final VisionSubsystem visionSubsystem = buildVisionSystem();
+    private final Intake intake = buildIntake();
+    private final Indexer indexer = buildIndexer();
+    private final Superstructure superstructure = new Superstructure(intake, indexer);
 
     private final DriveMaintainingHeadingCommand driveCommand =
             new DriveMaintainingHeadingCommand(
@@ -58,6 +69,7 @@ public class RobotContainer {
     private final AutoModeSelector autoModeSelector = new AutoModeSelector(this);
 
     public RobotContainer() {
+        SuperstructureConstants.init();
         driveForVision.set(driveSubsystem);
         configureBindings();
         SmartDashboard.putBoolean("Is Practice Bot", Constants.kIsPracticeBot);
@@ -89,6 +101,20 @@ public class RobotContainer {
         return new VisionSubsystem(new VisionIOHardwareLimelight(robotState), robotState);
     }
 
+    private Intake buildIntake() {
+        if (RobotBase.isSimulation()) {
+            return new Intake(new IntakeIOSim());
+        }
+        return new Intake(new IntakeIOReal());
+    }
+
+    private Indexer buildIndexer() {
+        if (RobotBase.isSimulation()) {
+            return new Indexer(new IndexerIOSim());
+        }
+        return new Indexer(new IndexerIOReal());
+    }
+
     private void configureBindings() {
         driveSubsystem.setDefaultCommand(driveCommand);
         controlBoard.resetGyro().onTrue(Commands.runOnce(this::resetHeading));
@@ -116,6 +142,18 @@ public class RobotContainer {
 
     public VisionSubsystem getVisionSubsystem() {
         return visionSubsystem;
+    }
+
+    public Intake getIntake() {
+        return intake;
+    }
+
+    public Indexer getIndexer() {
+        return indexer;
+    }
+
+    public Superstructure getSuperstructure() {
+        return superstructure;
     }
 
     public RobotState getRobotState() {
