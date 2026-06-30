@@ -1,10 +1,13 @@
 package frc.robot.subsystems.superstructure;
 
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.subsystems.feeder.Feeder;
 import frc.robot.subsystems.indexer.Indexer;
 import frc.robot.subsystems.intake.Intake;
+import frc.robot.subsystems.shooter.Shooter;
 import org.littletonrobotics.junction.Logger;
 
 public class Superstructure extends SubsystemBase {
@@ -17,13 +20,19 @@ public class Superstructure extends SubsystemBase {
 
     private final Intake intake;
     private final Indexer indexer;
+    private final Feeder feeder;
+    private final Shooter shooter;
 
     private Goal currentGoal = null;
     private Goal desiredGoal = null;
+    private boolean feedingLatched = false;
+    private double shooterReadyTimestamp = 0.0;
 
-    public Superstructure(Intake intake, Indexer indexer) {
+    public Superstructure(Intake intake, Indexer indexer, Feeder feeder, Shooter shooter) {
         this.intake = intake;
         this.indexer = indexer;
+        this.feeder = feeder;
+        this.shooter = shooter;
     }
 
     @Override
@@ -45,6 +54,24 @@ public class Superstructure extends SubsystemBase {
                 "Superstructure/IndexerConveyorVelocityRadPerSec",
                 indexer.getConveyorVelocityRadPerSec());
         Logger.recordOutput("Superstructure/IndexerRunning", indexer.isRunning());
+        Logger.recordOutput(
+                "Superstructure/FeederVelocityRadPerSec", feeder.getFeederVelocityRadPerSec());
+        Logger.recordOutput(
+                "Superstructure/ShooterLeftVelocityRadPerSec", shooter.getLeftVelocityRadPerSec());
+        Logger.recordOutput(
+                "Superstructure/ShooterMiddleVelocityRadPerSec",
+                shooter.getMiddleVelocityRadPerSec());
+        Logger.recordOutput(
+                "Superstructure/ShooterRightVelocityRadPerSec",
+                shooter.getRightVelocityRadPerSec());
+        Logger.recordOutput("Superstructure/ShooterAtSetpoint", shooter.atSetpoint());
+        Logger.recordOutput("Superstructure/FeedingLatched", feedingLatched);
+
+        if (currentGoal != desiredGoal
+                && (currentGoal == Goal.SHOOTING || desiredGoal == Goal.SHOOTING)) {
+            feedingLatched = false;
+            shooterReadyTimestamp = 0.0;
+        }
 
         currentGoal = desiredGoal;
 
@@ -60,6 +87,8 @@ public class Superstructure extends SubsystemBase {
                         SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                 indexer.setConveyorVelocity(
                         SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
+                feeder.stop();
+                shooter.stop();
                 break;
             case OUTTAKING:
                 intake.extend();
@@ -67,12 +96,31 @@ public class Superstructure extends SubsystemBase {
                         -SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                 indexer.setConveyorVelocity(
                         -SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
+                feeder.setFeederVelocity(-SuperstructureConstants.FEEDER_VELOCITY_RAD_PER_SEC);
+                shooter.stop();
                 break;
             case SHOOTING:
                 intake.retract();
                 intake.setRollerVelocity(0.0);
-                indexer.setConveyorVelocity(
-                        SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
+                shooter.setVelocity(SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC);
+                if (shooter.atSetpoint()) {
+                    if (shooterReadyTimestamp == 0.0) {
+                        shooterReadyTimestamp = Timer.getFPGATimestamp();
+                    }
+                    feedingLatched =
+                            Timer.getFPGATimestamp() - shooterReadyTimestamp
+                                    >= SuperstructureConstants.SHOOTER_FEED_DELAY_SECONDS;
+                } else {
+                    shooterReadyTimestamp = 0.0;
+                }
+                if (feedingLatched) {
+                    indexer.setConveyorVelocity(
+                            SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
+                    feeder.setFeederVelocity(SuperstructureConstants.FEEDER_VELOCITY_RAD_PER_SEC);
+                } else {
+                    indexer.stop();
+                    feeder.stop();
+                }
                 break;
         }
     }
@@ -102,8 +150,9 @@ public class Superstructure extends SubsystemBase {
         }
 
         return switch (currentGoal) {
-            case INTAKING, OUTTAKING -> intake.isExtended() && indexer.isRunning();
-            case SHOOTING -> intake.isRetracted() && indexer.isRunning();
+            case INTAKING -> intake.isExtended() && indexer.isRunning();
+            case OUTTAKING -> intake.isExtended() && indexer.isRunning() && feeder.isRunning();
+            case SHOOTING -> intake.isRetracted() && shooter.atSetpoint() && feedingLatched;
         };
     }
 
@@ -115,5 +164,7 @@ public class Superstructure extends SubsystemBase {
         intake.retract();
         intake.setRollerVelocity(0.0);
         indexer.stop();
+        feeder.stop();
+        shooter.stop();
     }
 }
