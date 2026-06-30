@@ -46,6 +46,21 @@ public class ControlBoard implements IDriveControlBoard, IButtonControlBoard {
     }
 
     @Override
+    public Trigger getWantIntake() {
+        return driveControlBoard.getWantIntake();
+    }
+
+    @Override
+    public Trigger getWantOuttake() {
+        return driveControlBoard.getWantOuttake();
+    }
+
+    @Override
+    public Trigger getWantShoot() {
+        return driveControlBoard.getWantShoot();
+    }
+
+    @Override
     public Trigger getWantToXWheels() {
         return buttonControlBoard.getWantToXWheels();
     }

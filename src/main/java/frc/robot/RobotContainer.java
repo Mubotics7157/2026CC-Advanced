@@ -20,13 +20,20 @@ import frc.robot.subsystems.drive.DriveConstants;
 import frc.robot.subsystems.drive.DriveIOHardware;
 import frc.robot.subsystems.drive.DriveIOSim;
 import frc.robot.subsystems.drive.DriveSubsystem;
+import frc.robot.subsystems.feeder.Feeder;
+import frc.robot.subsystems.feeder.FeederIOReal;
+import frc.robot.subsystems.feeder.FeederIOSim;
 import frc.robot.subsystems.indexer.Indexer;
 import frc.robot.subsystems.indexer.IndexerIOReal;
 import frc.robot.subsystems.indexer.IndexerIOSim;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.intake.IntakeIOReal;
 import frc.robot.subsystems.intake.IntakeIOSim;
+import frc.robot.subsystems.shooter.Shooter;
+import frc.robot.subsystems.shooter.ShooterIOReal;
+import frc.robot.subsystems.shooter.ShooterIOSim;
 import frc.robot.subsystems.superstructure.Superstructure;
+import frc.robot.subsystems.superstructure.Superstructure.Goal;
 import frc.robot.subsystems.superstructure.SuperstructureConstants;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
 import frc.robot.subsystems.vision.VisionIOHardwareLimelight;
@@ -56,7 +63,10 @@ public class RobotContainer {
     private final VisionSubsystem visionSubsystem = buildVisionSystem();
     private final Intake intake = buildIntake();
     private final Indexer indexer = buildIndexer();
-    private final Superstructure superstructure = new Superstructure(intake, indexer);
+    private final Feeder feeder = buildFeeder();
+    private final Shooter shooter = buildShooter();
+    private final Superstructure superstructure =
+            new Superstructure(intake, indexer, feeder, shooter);
 
     private final DriveMaintainingHeadingCommand driveCommand =
             new DriveMaintainingHeadingCommand(
@@ -115,10 +125,38 @@ public class RobotContainer {
         return new Indexer(new IndexerIOReal());
     }
 
+    private Feeder buildFeeder() {
+        if (RobotBase.isSimulation()) {
+            return new Feeder(new FeederIOSim());
+        }
+        return new Feeder(new FeederIOReal());
+    }
+
+    private Shooter buildShooter() {
+        if (RobotBase.isSimulation()) {
+            return new Shooter(new ShooterIOSim());
+        }
+        return new Shooter(new ShooterIOReal());
+    }
+
     private void configureBindings() {
         driveSubsystem.setDefaultCommand(driveCommand);
         controlBoard.resetGyro().onTrue(Commands.runOnce(this::resetHeading));
         controlBoard.getWantToXWheels().whileTrue(driveSubsystem.applyRequest(() -> xWheels));
+        controlBoard
+                .getWantIntake()
+                .whileTrue(setSuperstructureGoalCommand(Goal.INTAKING).withName("Intake"));
+        controlBoard
+                .getWantOuttake()
+                .whileTrue(setSuperstructureGoalCommand(Goal.OUTTAKING).withName("Outtake"));
+        controlBoard
+                .getWantShoot()
+                .whileTrue(setSuperstructureGoalCommand(Goal.SHOOTING).withName("Shoot"));
+    }
+
+    private Command setSuperstructureGoalCommand(Goal goal) {
+        return Commands.startEnd(
+                () -> superstructure.setGoal(goal), superstructure::stop, superstructure);
     }
 
     public void resetHeading() {
@@ -150,6 +188,14 @@ public class RobotContainer {
 
     public Indexer getIndexer() {
         return indexer;
+    }
+
+    public Feeder getFeeder() {
+        return feeder;
+    }
+
+    public Shooter getShooter() {
+        return shooter;
     }
 
     public Superstructure getSuperstructure() {

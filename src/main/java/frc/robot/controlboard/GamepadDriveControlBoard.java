@@ -55,4 +55,19 @@ public class GamepadDriveControlBoard implements IDriveControlBoard {
     public Trigger resetGyro() {
         return controller.back().and(controller.start().negate());
     }
+
+    @Override
+    public Trigger getWantIntake() {
+        return controller.leftBumper();
+    }
+
+    @Override
+    public Trigger getWantOuttake() {
+        return controller.rightBumper();
+    }
+
+    @Override
+    public Trigger getWantShoot() {
+        return controller.rightTrigger();
+    }
 }

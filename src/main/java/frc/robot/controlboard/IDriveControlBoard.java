@@ -12,4 +12,10 @@ public interface IDriveControlBoard {
     double getRotationY();
 
     Trigger resetGyro();
+
+    Trigger getWantIntake();
+
+    Trigger getWantOuttake();
+
+    Trigger getWantShoot();
 }
