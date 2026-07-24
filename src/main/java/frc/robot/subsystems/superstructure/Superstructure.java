@@ -15,7 +15,9 @@ public class Superstructure extends SubsystemBase {
     public enum Goal {
         INTAKING,
         OUTTAKING,
-        SHOOTING
+        SHOOTING,
+        IDLE,
+        DEPLOYED_IDLE
     }
 
     private final Intake intake;
@@ -122,6 +124,19 @@ public class Superstructure extends SubsystemBase {
                     feeder.stop();
                 }
                 break;
+            case IDLE:
+                intake.stopRoller();
+                intake.retract();
+                shooter.stop();
+                feeder.stop();
+                indexer.stop();
+            break;
+            case DEPLOYED_IDLE:
+                intake.stopRoller();
+                intake.extend();
+                shooter.stop();
+                feeder.stop();
+                indexer.stop();
         }
     }
 
