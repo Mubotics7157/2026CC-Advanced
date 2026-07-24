@@ -57,12 +57,11 @@ public final class IntakeFactory {
      * @param turretManager The turret manager subsystem
      * @return Command that forces IDLE + zero-offset turrets while running
      */
-    public static Command manualStowCommand(
-            Superstructure superstructure) {
+    public static Command manualStowCommand(Superstructure superstructure) {
         return Commands.parallel(
                         superstructure.startEnd(
                                 () -> superstructure.setGoal(Goal.IDLE),
-                                () -> superstructure.setGoal(Goal.IDLE))
+                                () -> superstructure.setGoal(Goal.IDLE)))
                 .withName("manualStowCommand");
     }
 
