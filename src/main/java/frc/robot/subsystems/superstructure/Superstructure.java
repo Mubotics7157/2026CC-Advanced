@@ -130,13 +130,14 @@ public class Superstructure extends SubsystemBase {
                 shooter.stop();
                 feeder.stop();
                 indexer.stop();
-            break;
+                break;
             case DEPLOYED_IDLE:
                 intake.stopRoller();
                 intake.extend();
                 shooter.stop();
                 feeder.stop();
                 indexer.stop();
+                break;
         }
     }
 
@@ -168,6 +169,10 @@ public class Superstructure extends SubsystemBase {
             case INTAKING -> intake.isExtended() && indexer.isRunning();
             case OUTTAKING -> intake.isExtended() && indexer.isRunning() && feeder.isRunning();
             case SHOOTING -> intake.isRetracted() && shooter.atSetpoint() && feedingLatched;
+            case IDLE -> intake.isRetracted() && !indexer.isRunning() && !feeder.isRunning();
+            case DEPLOYED_IDLE -> intake.isExtended()
+                    && !indexer.isRunning()
+                    && !feeder.isRunning();
         };
     }
 
