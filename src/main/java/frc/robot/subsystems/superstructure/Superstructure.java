@@ -133,13 +133,14 @@ public class Superstructure extends SubsystemBase {
                 shooter.stop();
                 feeder.stop();
                 indexer.stop();
-            break;
+                break;
             case DEPLOYED_IDLE:
                 intake.stopRoller();
                 intake.deployArm();
                 shooter.stop();
                 feeder.stop();
                 indexer.stop();
+                break;
         }
     }
 
