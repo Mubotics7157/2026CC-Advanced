@@ -14,6 +14,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.auto.AutoModeSelector;
 import frc.robot.commands.DriveMaintainingHeadingCommand;
 import frc.robot.controlboard.ControlBoard;
+import frc.robot.factories.IntakeFactory;
 import frc.robot.lib.util.MathHelpers;
 import frc.robot.simulation.SimulatedRobotState;
 import frc.robot.subsystems.drive.DriveConstants;
@@ -33,7 +34,6 @@ import frc.robot.subsystems.shooter.Shooter;
 import frc.robot.subsystems.shooter.ShooterIOReal;
 import frc.robot.subsystems.shooter.ShooterIOSim;
 import frc.robot.subsystems.superstructure.Superstructure;
-import frc.robot.subsystems.superstructure.Superstructure.Goal;
 import frc.robot.subsystems.superstructure.SuperstructureConstants;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
 import frc.robot.subsystems.vision.VisionIOHardwareLimelight;
@@ -112,10 +112,14 @@ public class RobotContainer {
     }
 
     private Intake buildIntake() {
+        Intake intake;
         if (RobotBase.isSimulation()) {
-            return new Intake(new IntakeIOSim());
+            intake = new Intake(new IntakeIOSim());
+        } else {
+            intake = new Intake(new IntakeIOReal());
         }
-        return new Intake(new IntakeIOReal());
+        intake.resetArmEncoderToDefault();
+        return intake;
     }
 
     private Indexer buildIndexer() {
@@ -145,18 +149,13 @@ public class RobotContainer {
         controlBoard.getWantToXWheels().whileTrue(driveSubsystem.applyRequest(() -> xWheels));
         controlBoard
                 .getWantIntake()
-                .whileTrue(setSuperstructureGoalCommand(Goal.INTAKING).withName("Intake"));
+                .whileTrue(IntakeFactory.setIntakingCommand(superstructure));
         controlBoard
                 .getWantOuttake()
-                .whileTrue(setSuperstructureGoalCommand(Goal.OUTTAKING).withName("Outtake"));
+                .whileTrue(IntakeFactory.setOuttakingCommand(superstructure));
         controlBoard
                 .getWantShoot()
-                .whileTrue(setSuperstructureGoalCommand(Goal.SHOOTING).withName("Shoot"));
-    }
-
-    private Command setSuperstructureGoalCommand(Goal goal) {
-        return Commands.startEnd(
-                () -> superstructure.setGoal(goal), superstructure::stop, superstructure);
+                .whileTrue(IntakeFactory.setShootingCommand(superstructure));
     }
 
     public void resetHeading() {

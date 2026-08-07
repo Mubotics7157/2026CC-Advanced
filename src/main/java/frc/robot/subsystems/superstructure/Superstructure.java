@@ -47,8 +47,8 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput("Superstructure/GoalTransitioning", currentGoal != desiredGoal);
 
         Logger.recordOutput(
-                "Superstructure/IntakeExtensionPositionMeters",
-                intake.getExtensionPositionMeters());
+                "Superstructure/IntakeArmPositionRad",
+                intake.getArmPositionRad());
         Logger.recordOutput(
                 "Superstructure/IntakeRollerVelocityRadPerSec",
                 intake.getRollerVelocityRadPerSec());
@@ -84,7 +84,7 @@ public class Superstructure extends SubsystemBase {
 
         switch (currentGoal) {
             case INTAKING:
-                intake.extend();
+                intake.deployArm();
                 intake.setRollerVelocity(
                         SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                 indexer.setConveyorVelocity(
@@ -93,7 +93,7 @@ public class Superstructure extends SubsystemBase {
                 shooter.stop();
                 break;
             case OUTTAKING:
-                intake.extend();
+                intake.deployArm();
                 intake.setRollerVelocity(
                         -SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                 indexer.setConveyorVelocity(
@@ -102,8 +102,10 @@ public class Superstructure extends SubsystemBase {
                 shooter.stop();
                 break;
             case SHOOTING:
-                intake.retract();
-                intake.setRollerVelocity(0.0);
+                // Keep the forebar active while feeding. There is intentionally no turret or
+                // arm-retracted shooting interlock on this robot.
+                intake.deployArm();
+                intake.setRollerVelocity(SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                 shooter.setVelocity(SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC);
                 if (shooter.atSetpoint()) {
                     if (shooterReadyTimestamp == 0.0) {
@@ -116,6 +118,7 @@ public class Superstructure extends SubsystemBase {
                     shooterReadyTimestamp = 0.0;
                 }
                 if (feedingLatched) {
+                    commandShootingAgitation();
                     indexer.setConveyorVelocity(
                             SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
                     feeder.setFeederVelocity(SuperstructureConstants.FEEDER_VELOCITY_RAD_PER_SEC);
@@ -126,14 +129,14 @@ public class Superstructure extends SubsystemBase {
                 break;
             case IDLE:
                 intake.stopRoller();
-                intake.retract();
+                intake.stowArm();
                 shooter.stop();
                 feeder.stop();
                 indexer.stop();
             break;
             case DEPLOYED_IDLE:
                 intake.stopRoller();
-                intake.extend();
+                intake.deployArm();
                 shooter.stop();
                 feeder.stop();
                 indexer.stop();
@@ -165,9 +168,11 @@ public class Superstructure extends SubsystemBase {
         }
 
         return switch (currentGoal) {
-            case INTAKING -> intake.isExtended() && indexer.isRunning();
-            case OUTTAKING -> intake.isExtended() && indexer.isRunning() && feeder.isRunning();
-            case SHOOTING -> intake.isRetracted() && shooter.atSetpoint() && feedingLatched;
+            case INTAKING -> intake.isDeployed() && indexer.isRunning();
+            case OUTTAKING -> intake.isDeployed() && indexer.isRunning() && feeder.isRunning();
+            case SHOOTING -> shooter.atSetpoint() && feedingLatched;
+            case IDLE -> intake.isStowed();
+            case DEPLOYED_IDLE -> intake.isDeployed();
         };
     }
 
@@ -176,10 +181,20 @@ public class Superstructure extends SubsystemBase {
     }
 
     private void commandIdle() {
-        intake.retract();
+        intake.stowArm();
         intake.setRollerVelocity(0.0);
         indexer.stop();
         feeder.stop();
         shooter.stop();
+    }
+
+    private void commandShootingAgitation() {
+        double phase = (Timer.getFPGATimestamp() % SuperstructureConstants.SHOOTING_AGITATION_PERIOD_SECONDS)
+                / SuperstructureConstants.SHOOTING_AGITATION_PERIOD_SECONDS;
+        if (phase < 0.5) {
+            intake.agitateArm();
+        } else {
+            intake.deployArm();
+        }
     }
 }

@@ -1,7 +1,6 @@
 package frc.robot.factories;
 
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.subsystems.superstructure.Superstructure;
 import frc.robot.subsystems.superstructure.Superstructure.Goal;
 
@@ -46,23 +45,29 @@ public final class IntakeFactory {
     }
 
     /**
-     * Driver manual-stow command: while held, forces the superstructure to IDLE (arm stowed,
-     * rollers off) and drives both turrets to their side-specific aim zero offset positions. When
-     * released, the superstructure stays IDLE and the turrets fall back to the default hub
-     * tracking. If another input that requires the superstructure (e.g., intake) is pressed while
-     * this command is running, the subsystem requirement causes this command to be interrupted and
-     * the other input takes precedence.
+     * Runs the complete shoot sequence while held. Releasing it returns the forebar to its safe
+     * stowed idle state.
+     */
+    public static Command setShootingCommand(Superstructure superstructure) {
+        return superstructure
+                .startEnd(
+                        () -> superstructure.setGoal(Goal.SHOOTING),
+                        () -> superstructure.setGoal(Goal.IDLE))
+                .withName("setShootingCommand");
+    }
+
+    /**
+     * Driver manual-stow command: while held, forces the superstructure to IDLE (forebar stowed,
+     * rollers off). The intake subsystem requirement allows another intake action to interrupt it.
      *
      * @param superstructure The superstructure subsystem
-     * @param turretManager The turret manager subsystem
-     * @return Command that forces IDLE + zero-offset turrets while running
+     * @return Command that maintains IDLE while running
      */
-    public static Command manualStowCommand(
-            Superstructure superstructure) {
-        return Commands.parallel(
-                        superstructure.startEnd(
-                                () -> superstructure.setGoal(Goal.IDLE),
-                                () -> superstructure.setGoal(Goal.IDLE))
+    public static Command manualStowCommand(Superstructure superstructure) {
+        return superstructure
+                .startEnd(
+                        () -> superstructure.setGoal(Goal.IDLE),
+                        () -> superstructure.setGoal(Goal.IDLE))
                 .withName("manualStowCommand");
     }
 

@@ -16,4 +16,6 @@ public final class SuperstructureConstants {
     public static final double SHOOTER_VELOCITY_RAD_PER_SEC =
             Units.rotationsPerMinuteToRadiansPerSecond(2600.0);
     public static final double SHOOTER_FEED_DELAY_SECONDS = 0.25;
+    /** Full back-and-forth forebar cycle used to agitate balls while feeding the shooter. */
+    public static final double SHOOTING_AGITATION_PERIOD_SECONDS = 0.25;
 }
