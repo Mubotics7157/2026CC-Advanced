@@ -46,9 +46,7 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput("Superstructure/AtGoal", atGoal());
         Logger.recordOutput("Superstructure/GoalTransitioning", currentGoal != desiredGoal);
 
-        Logger.recordOutput(
-                "Superstructure/IntakeArmPositionRad",
-                intake.getArmPositionRad());
+        Logger.recordOutput("Superstructure/IntakeArmPositionRad", intake.getArmPositionRad());
         Logger.recordOutput(
                 "Superstructure/IntakeRollerVelocityRadPerSec",
                 intake.getRollerVelocityRadPerSec());
@@ -105,7 +103,8 @@ public class Superstructure extends SubsystemBase {
                 // Keep the forebar active while feeding. There is intentionally no turret or
                 // arm-retracted shooting interlock on this robot.
                 intake.deployArm();
-                intake.setRollerVelocity(SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
+                intake.setRollerVelocity(
+                        SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                 shooter.setVelocity(SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC);
                 if (shooter.atSetpoint()) {
                     if (shooterReadyTimestamp == 0.0) {
@@ -190,8 +189,10 @@ public class Superstructure extends SubsystemBase {
     }
 
     private void commandShootingAgitation() {
-        double phase = (Timer.getFPGATimestamp() % SuperstructureConstants.SHOOTING_AGITATION_PERIOD_SECONDS)
-                / SuperstructureConstants.SHOOTING_AGITATION_PERIOD_SECONDS;
+        double phase =
+                (Timer.getFPGATimestamp()
+                                % SuperstructureConstants.SHOOTING_AGITATION_PERIOD_SECONDS)
+                        / SuperstructureConstants.SHOOTING_AGITATION_PERIOD_SECONDS;
         if (phase < 0.5) {
             intake.agitateArm();
         } else {

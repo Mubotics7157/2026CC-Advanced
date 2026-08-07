@@ -28,17 +28,24 @@ public final class IntakeConstants {
     public static final double ROLLER_STATOR_CURRENT_LIMIT = 40.0;
     public static final double ARM_STATOR_CURRENT_LIMIT = 40.0;
 
-    public static final LoggedTunableNumber ROLLER_KS = new LoggedTunableNumber("Intake/Roller/kS", 0.0);
-    public static final LoggedTunableNumber ROLLER_KV = new LoggedTunableNumber("Intake/Roller/kV", 0.12);
-    public static final LoggedTunableNumber ROLLER_KA = new LoggedTunableNumber("Intake/Roller/kA", 0.0);
-    public static final LoggedTunableNumber ROLLER_KP = new LoggedTunableNumber("Intake/Roller/kP", 5.0);
-    public static final LoggedTunableNumber ROLLER_KI = new LoggedTunableNumber("Intake/Roller/kI", 0.0);
-    public static final LoggedTunableNumber ROLLER_KD = new LoggedTunableNumber("Intake/Roller/kD", 0.0);
+    public static final LoggedTunableNumber ROLLER_KS =
+            new LoggedTunableNumber("Intake/Roller/kS", 0.0);
+    public static final LoggedTunableNumber ROLLER_KV =
+            new LoggedTunableNumber("Intake/Roller/kV", 0.12);
+    public static final LoggedTunableNumber ROLLER_KA =
+            new LoggedTunableNumber("Intake/Roller/kA", 0.0);
+    public static final LoggedTunableNumber ROLLER_KP =
+            new LoggedTunableNumber("Intake/Roller/kP", 5.0);
+    public static final LoggedTunableNumber ROLLER_KI =
+            new LoggedTunableNumber("Intake/Roller/kI", 0.0);
+    public static final LoggedTunableNumber ROLLER_KD =
+            new LoggedTunableNumber("Intake/Roller/kD", 0.0);
 
     public static final LoggedTunableNumber ARM_KS = new LoggedTunableNumber("Intake/Arm/kS", 0.0);
     public static final LoggedTunableNumber ARM_KV = new LoggedTunableNumber("Intake/Arm/kV", 0.0);
     public static final LoggedTunableNumber ARM_KA = new LoggedTunableNumber("Intake/Arm/kA", 0.0);
-    public static final LoggedTunableNumber ARM_KG = new LoggedTunableNumber("Intake/Arm/kG", 0.212);
+    public static final LoggedTunableNumber ARM_KG =
+            new LoggedTunableNumber("Intake/Arm/kG", 0.212);
     public static final LoggedTunableNumber ARM_KP = new LoggedTunableNumber("Intake/Arm/kP", 53.0);
     public static final LoggedTunableNumber ARM_KI = new LoggedTunableNumber("Intake/Arm/kI", 0.0);
     public static final LoggedTunableNumber ARM_KD = new LoggedTunableNumber("Intake/Arm/kD", 4.25);
@@ -59,16 +66,23 @@ public final class IntakeConstants {
     public static final double STATUS_SIGNAL_UPDATE_FREQUENCY = 50.0;
 
     public static boolean hasAnyRollerPIDChanged() {
-        return ROLLER_KS.hasChanged(ROLLER_TUNABLE_ID) || ROLLER_KV.hasChanged(ROLLER_TUNABLE_ID)
-                || ROLLER_KA.hasChanged(ROLLER_TUNABLE_ID) || ROLLER_KP.hasChanged(ROLLER_TUNABLE_ID)
-                || ROLLER_KI.hasChanged(ROLLER_TUNABLE_ID) || ROLLER_KD.hasChanged(ROLLER_TUNABLE_ID);
+        return ROLLER_KS.hasChanged(ROLLER_TUNABLE_ID)
+                || ROLLER_KV.hasChanged(ROLLER_TUNABLE_ID)
+                || ROLLER_KA.hasChanged(ROLLER_TUNABLE_ID)
+                || ROLLER_KP.hasChanged(ROLLER_TUNABLE_ID)
+                || ROLLER_KI.hasChanged(ROLLER_TUNABLE_ID)
+                || ROLLER_KD.hasChanged(ROLLER_TUNABLE_ID);
     }
 
     public static boolean hasAnyArmPIDChanged() {
-        return ARM_KS.hasChanged(ARM_TUNABLE_ID) || ARM_KV.hasChanged(ARM_TUNABLE_ID)
-                || ARM_KA.hasChanged(ARM_TUNABLE_ID) || ARM_KG.hasChanged(ARM_TUNABLE_ID)
-                || ARM_KP.hasChanged(ARM_TUNABLE_ID) || ARM_KI.hasChanged(ARM_TUNABLE_ID)
-                || ARM_KD.hasChanged(ARM_TUNABLE_ID) || ARM_GRAVITY_OFFSET_ROT.hasChanged(ARM_TUNABLE_ID)
+        return ARM_KS.hasChanged(ARM_TUNABLE_ID)
+                || ARM_KV.hasChanged(ARM_TUNABLE_ID)
+                || ARM_KA.hasChanged(ARM_TUNABLE_ID)
+                || ARM_KG.hasChanged(ARM_TUNABLE_ID)
+                || ARM_KP.hasChanged(ARM_TUNABLE_ID)
+                || ARM_KI.hasChanged(ARM_TUNABLE_ID)
+                || ARM_KD.hasChanged(ARM_TUNABLE_ID)
+                || ARM_GRAVITY_OFFSET_ROT.hasChanged(ARM_TUNABLE_ID)
                 || ARM_MOTION_MAGIC_EXPO_KV.hasChanged(ARM_TUNABLE_ID)
                 || ARM_MOTION_MAGIC_EXPO_KA.hasChanged(ARM_TUNABLE_ID)
                 || ARM_MOTION_MAGIC_CRUISE_VELOCITY_RAD_PER_SEC.hasChanged(ARM_TUNABLE_ID)

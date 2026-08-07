@@ -15,7 +15,6 @@ import frc.robot.auto.AutoModeSelector;
 import frc.robot.commands.DriveMaintainingHeadingCommand;
 import frc.robot.controlboard.ControlBoard;
 import frc.robot.factories.IntakeFactory;
-import frc.robot.factories.ShooterFactory;
 import frc.robot.lib.util.MathHelpers;
 import frc.robot.simulation.SimulatedRobotState;
 import frc.robot.subsystems.drive.DriveConstants;
@@ -148,15 +147,9 @@ public class RobotContainer {
         driveSubsystem.setDefaultCommand(driveCommand);
         controlBoard.resetGyro().onTrue(Commands.runOnce(this::resetHeading));
         controlBoard.getWantToXWheels().whileTrue(driveSubsystem.applyRequest(() -> xWheels));
-        controlBoard
-                .getWantIntake()
-                .whileTrue(IntakeFactory.setIntakingCommand(superstructure));
-        controlBoard
-                .getWantOuttake()
-                .whileTrue(IntakeFactory.setOuttakingCommand(superstructure));
-        controlBoard
-                .getWantShoot()
-                .whileTrue(IntakeFactory.setShootingCommand(superstructure));
+        controlBoard.getWantIntake().whileTrue(IntakeFactory.setIntakingCommand(superstructure));
+        controlBoard.getWantOuttake().whileTrue(IntakeFactory.setOuttakingCommand(superstructure));
+        controlBoard.getWantShoot().whileTrue(IntakeFactory.setShootingCommand(superstructure));
     }
 
     public void resetHeading() {

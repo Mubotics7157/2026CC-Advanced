@@ -18,12 +18,20 @@ public interface IntakeIO {
     }
 
     default void updateInputs(IntakeIOInputs inputs) {}
+
     default void setRollerVelocity(double velocityRadPerSec) {}
+
     default void setArmVoltage(double voltage) {}
+
     default void setArmPosition(double positionRad) {}
+
     default void stopRoller() {}
+
     default void stopArmMotor() {}
+
     default void updateRollerConfig() {}
+
     default void updateArmConfig() {}
+
     default void setArmEncoderPosition(double positionRad) {}
 }
