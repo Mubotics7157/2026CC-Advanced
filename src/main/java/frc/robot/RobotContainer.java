@@ -21,9 +21,6 @@ import frc.robot.subsystems.drive.DriveConstants;
 import frc.robot.subsystems.drive.DriveIOHardware;
 import frc.robot.subsystems.drive.DriveIOSim;
 import frc.robot.subsystems.drive.DriveSubsystem;
-import frc.robot.subsystems.feeder.Feeder;
-import frc.robot.subsystems.feeder.FeederIOReal;
-import frc.robot.subsystems.feeder.FeederIOSim;
 import frc.robot.subsystems.indexer.Indexer;
 import frc.robot.subsystems.indexer.IndexerIOReal;
 import frc.robot.subsystems.indexer.IndexerIOSim;
@@ -63,10 +60,8 @@ public class RobotContainer {
     private final VisionSubsystem visionSubsystem = buildVisionSystem();
     private final Intake intake = buildIntake();
     private final Indexer indexer = buildIndexer();
-    private final Feeder feeder = buildFeeder();
     private final Shooter shooter = buildShooter();
-    private final Superstructure superstructure =
-            new Superstructure(intake, indexer, feeder, shooter);
+    private final Superstructure superstructure = new Superstructure(intake, indexer, shooter);
 
     private final DriveMaintainingHeadingCommand driveCommand =
             new DriveMaintainingHeadingCommand(
@@ -129,13 +124,6 @@ public class RobotContainer {
         return new Indexer(new IndexerIOReal());
     }
 
-    private Feeder buildFeeder() {
-        if (RobotBase.isSimulation()) {
-            return new Feeder(new FeederIOSim());
-        }
-        return new Feeder(new FeederIOReal());
-    }
-
     private Shooter buildShooter() {
         if (RobotBase.isSimulation()) {
             return new Shooter(new ShooterIOSim());
@@ -181,10 +169,6 @@ public class RobotContainer {
 
     public Indexer getIndexer() {
         return indexer;
-    }
-
-    public Feeder getFeeder() {
-        return feeder;
     }
 
     public Shooter getShooter() {

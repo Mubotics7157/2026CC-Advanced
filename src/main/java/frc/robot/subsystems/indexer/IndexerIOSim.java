@@ -10,9 +10,12 @@ public class IndexerIOSim implements IndexerIO {
     private static final double MAX_VOLTAGE = 12.0;
 
     private final DCMotorSim conveyorSim;
+    private final DCMotorSim feederSim;
 
     private double conveyorAppliedVolts = 0.0;
     private double conveyorVelocitySetpoint = 0.0;
+    private double feederAppliedVolts = 0.0;
+    private double feederVelocitySetpoint = 0.0;
 
     public IndexerIOSim() {
         conveyorSim =
@@ -22,16 +25,28 @@ public class IndexerIOSim implements IndexerIO {
                                 IndexerConstants.CONVEYOR_MOI,
                                 IndexerConstants.CONVEYOR_GEAR_RATIO),
                         DCMotor.getKrakenX60(1));
+        feederSim =
+                new DCMotorSim(
+                        LinearSystemId.createDCMotorSystem(
+                                DCMotor.getKrakenX60(1),
+                                IndexerConstants.FEEDER_MOI,
+                                IndexerConstants.FEEDER_GEAR_RATIO),
+                        DCMotor.getKrakenX60(1));
     }
 
     @Override
     public void updateInputs(IndexerIOInputs inputs) {
         conveyorSim.update(SIM_LOOP_PERIOD);
+        feederSim.update(SIM_LOOP_PERIOD);
 
         inputs.conveyorVelocity = conveyorSim.getAngularVelocityRadPerSec();
         inputs.conveyorVoltage = conveyorAppliedVolts;
         inputs.conveyorCurrent = conveyorSim.getCurrentDrawAmps();
         inputs.conveyorVelocitySetpoint = conveyorVelocitySetpoint;
+        inputs.feederVelocity = feederSim.getAngularVelocityRadPerSec();
+        inputs.feederVoltage = feederAppliedVolts;
+        inputs.feederCurrent = feederSim.getCurrentDrawAmps();
+        inputs.feederVelocitySetpoint = feederVelocitySetpoint;
     }
 
     @Override
@@ -43,9 +58,30 @@ public class IndexerIOSim implements IndexerIO {
     }
 
     @Override
-    public void stop() {
+    public void setFeederVelocity(double velocityRadPerSec) {
+        feederVelocitySetpoint = velocityRadPerSec;
+        double error = velocityRadPerSec - feederSim.getAngularVelocityRadPerSec();
+        feederAppliedVolts = MathUtil.clamp(error * 0.1, -MAX_VOLTAGE, MAX_VOLTAGE);
+        feederSim.setInputVoltage(feederAppliedVolts);
+    }
+
+    @Override
+    public void stopConveyor() {
         conveyorVelocitySetpoint = 0.0;
         conveyorAppliedVolts = 0.0;
         conveyorSim.setInputVoltage(0.0);
+    }
+
+    @Override
+    public void stopFeeder() {
+        feederVelocitySetpoint = 0.0;
+        feederAppliedVolts = 0.0;
+        feederSim.setInputVoltage(0.0);
+    }
+
+    @Override
+    public void stop() {
+        stopConveyor();
+        stopFeeder();
     }
 }
