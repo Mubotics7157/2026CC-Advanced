@@ -17,6 +17,8 @@ public class ShooterIOSim implements ShooterIO {
     private double middleAppliedVolts = 0.0;
     private double rightAppliedVolts = 0.0;
     private double velocitySetpoint = 0.0;
+    private double hoodPositionRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
+    private double hoodSetpointRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
 
     public ShooterIOSim() {
         leftSim = createSim();
@@ -43,6 +45,9 @@ public class ShooterIOSim implements ShooterIO {
         inputs.rightCurrent = rightSim.getCurrentDrawAmps();
 
         inputs.velocitySetpoint = velocitySetpoint;
+        inputs.hoodSetpointRad = hoodSetpointRad;
+        inputs.hoodPositionRad = hoodPositionRad;
+        inputs.hoodHardwareConfigured = true;
     }
 
     @Override
@@ -58,8 +63,20 @@ public class ShooterIOSim implements ShooterIO {
     }
 
     @Override
+    public void setHoodAngle(double angleRad) {
+        hoodSetpointRad =
+                MathUtil.clamp(
+                        angleRad,
+                        ShooterConstants.HOOD_MIN_ANGLE_RAD,
+                        ShooterConstants.HOOD_MAX_ANGLE_RAD);
+        hoodPositionRad = hoodSetpointRad;
+    }
+
+    @Override
     public void stop() {
         velocitySetpoint = 0.0;
+        hoodSetpointRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
+        hoodPositionRad = hoodSetpointRad;
         leftAppliedVolts = 0.0;
         middleAppliedVolts = 0.0;
         rightAppliedVolts = 0.0;

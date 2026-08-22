@@ -13,6 +13,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.auto.AutoModeSelector;
 import frc.robot.commands.DriveMaintainingHeadingCommand;
+import frc.robot.commands.ShootOnTheMoveCommand;
 import frc.robot.controlboard.ControlBoard;
 import frc.robot.factories.IntakeFactory;
 import frc.robot.lib.util.MathHelpers;
@@ -137,7 +138,15 @@ public class RobotContainer {
         controlBoard.getWantToXWheels().whileTrue(driveSubsystem.applyRequest(() -> xWheels));
         controlBoard.getWantIntake().whileTrue(IntakeFactory.setIntakingCommand(superstructure));
         controlBoard.getWantOuttake().whileTrue(IntakeFactory.setOuttakingCommand(superstructure));
-        controlBoard.getWantShoot().whileTrue(IntakeFactory.setShootingCommand(superstructure));
+        controlBoard
+                .getWantShoot()
+                .whileTrue(
+                        new ShootOnTheMoveCommand(
+                                driveSubsystem,
+                                robotState,
+                                superstructure,
+                                controlBoard::getThrottle,
+                                controlBoard::getStrafe));
     }
 
     public void resetHeading() {

@@ -27,6 +27,9 @@ public class Superstructure extends SubsystemBase {
     private Goal desiredGoal = null;
     private boolean feedingLatched = false;
     private double shooterReadyTimestamp = 0.0;
+    private double shootingVelocityRadPerSec = SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC;
+    private double shootingHoodAngleRad = SuperstructureConstants.SHOOTER_HOOD_ANGLE_RAD;
+    private boolean shotReadyToFeed = true;
 
     public Superstructure(Intake intake, Indexer indexer, Shooter shooter) {
         this.intake = intake;
@@ -63,6 +66,11 @@ public class Superstructure extends SubsystemBase {
                 shooter.getRightVelocityRadPerSec());
         Logger.recordOutput("Superstructure/ShooterAtSetpoint", shooter.atSetpoint());
         Logger.recordOutput("Superstructure/FeedingLatched", feedingLatched);
+        Logger.recordOutput("Superstructure/ShootingVelocityRadPerSec", shootingVelocityRadPerSec);
+        Logger.recordOutput("Superstructure/ShootingHoodAngleRad", shootingHoodAngleRad);
+        Logger.recordOutput(
+                "Superstructure/ShootingHoodAngleDeg", Math.toDegrees(shootingHoodAngleRad));
+        Logger.recordOutput("Superstructure/ShotReadyToFeed", shotReadyToFeed);
 
         if (currentGoal != desiredGoal
                 && (currentGoal == Goal.SHOOTING || desiredGoal == Goal.SHOOTING)) {
@@ -102,8 +110,9 @@ public class Superstructure extends SubsystemBase {
                 intake.deployArm();
                 intake.setRollerVelocity(
                         SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
-                shooter.setVelocity(SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC);
-                if (shooter.atSetpoint()) {
+                shooter.setHoodAngle(shootingHoodAngleRad);
+                shooter.setVelocity(shootingVelocityRadPerSec);
+                if (shooter.atSetpoint() && shotReadyToFeed) {
                     if (shooterReadyTimestamp == 0.0) {
                         shooterReadyTimestamp = Timer.getFPGATimestamp();
                     }
@@ -153,6 +162,19 @@ public class Superstructure extends SubsystemBase {
         desiredGoal = null;
     }
 
+    public void setShootingRequest(
+            double velocityRadPerSec, double hoodAngleRad, boolean readyToFeed) {
+        shootingVelocityRadPerSec = velocityRadPerSec;
+        shootingHoodAngleRad = hoodAngleRad;
+        shotReadyToFeed = readyToFeed;
+    }
+
+    public void clearShootingRequest() {
+        shootingVelocityRadPerSec = SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC;
+        shootingHoodAngleRad = SuperstructureConstants.SHOOTER_HOOD_ANGLE_RAD;
+        shotReadyToFeed = true;
+    }
+
     public boolean atGoal() {
         if (currentGoal != desiredGoal) {
             return false;
@@ -166,7 +188,7 @@ public class Superstructure extends SubsystemBase {
             case OUTTAKING -> intake.isDeployed()
                     && indexer.isConveyorRunning()
                     && indexer.isFeederRunning();
-            case SHOOTING -> shooter.atSetpoint() && feedingLatched;
+            case SHOOTING -> shooter.atSetpoint() && shotReadyToFeed && feedingLatched;
             case IDLE -> intake.isStowed();
             case DEPLOYED_IDLE -> intake.isDeployed();
         };

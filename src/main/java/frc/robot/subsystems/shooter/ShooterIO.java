@@ -18,11 +18,16 @@ public interface ShooterIO {
         public double rightCurrent = 0.0;
 
         public double velocitySetpoint = 0.0;
+        public double hoodPositionRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
+        public double hoodSetpointRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
+        public boolean hoodHardwareConfigured = false;
     }
 
     default void updateInputs(ShooterIOInputs inputs) {}
 
     default void setVelocity(double velocityRadPerSec) {}
+
+    default void setHoodAngle(double angleRad) {}
 
     default void stop() {}
 
