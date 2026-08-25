@@ -4,7 +4,6 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.subsystems.feeder.Feeder;
 import frc.robot.subsystems.indexer.Indexer;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
@@ -22,18 +21,19 @@ public class Superstructure extends SubsystemBase {
 
     private final Intake intake;
     private final Indexer indexer;
-    private final Feeder feeder;
     private final Shooter shooter;
 
     private Goal currentGoal = null;
     private Goal desiredGoal = null;
     private boolean feedingLatched = false;
     private double shooterReadyTimestamp = 0.0;
+    private double shootingVelocityRadPerSec = SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC;
+    private double shootingHoodAngleRad = SuperstructureConstants.SHOOTER_HOOD_ANGLE_RAD;
+    private boolean shotReadyToFeed = true;
 
-    public Superstructure(Intake intake, Indexer indexer, Feeder feeder, Shooter shooter) {
+    public Superstructure(Intake intake, Indexer indexer, Shooter shooter) {
         this.intake = intake;
         this.indexer = indexer;
-        this.feeder = feeder;
         this.shooter = shooter;
     }
 
@@ -55,7 +55,7 @@ public class Superstructure extends SubsystemBase {
                 indexer.getConveyorVelocityRadPerSec());
         Logger.recordOutput("Superstructure/IndexerRunning", indexer.isRunning());
         Logger.recordOutput(
-                "Superstructure/FeederVelocityRadPerSec", feeder.getFeederVelocityRadPerSec());
+                "Superstructure/FeederVelocityRadPerSec", indexer.getFeederVelocityRadPerSec());
         Logger.recordOutput(
                 "Superstructure/ShooterLeftVelocityRadPerSec", shooter.getLeftVelocityRadPerSec());
         Logger.recordOutput(
@@ -66,6 +66,11 @@ public class Superstructure extends SubsystemBase {
                 shooter.getRightVelocityRadPerSec());
         Logger.recordOutput("Superstructure/ShooterAtSetpoint", shooter.atSetpoint());
         Logger.recordOutput("Superstructure/FeedingLatched", feedingLatched);
+        Logger.recordOutput("Superstructure/ShootingVelocityRadPerSec", shootingVelocityRadPerSec);
+        Logger.recordOutput("Superstructure/ShootingHoodAngleRad", shootingHoodAngleRad);
+        Logger.recordOutput(
+                "Superstructure/ShootingHoodAngleDeg", Math.toDegrees(shootingHoodAngleRad));
+        Logger.recordOutput("Superstructure/ShotReadyToFeed", shotReadyToFeed);
 
         if (currentGoal != desiredGoal
                 && (currentGoal == Goal.SHOOTING || desiredGoal == Goal.SHOOTING)) {
@@ -87,7 +92,7 @@ public class Superstructure extends SubsystemBase {
                         SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                 indexer.setConveyorVelocity(
                         SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
-                feeder.stop();
+                indexer.stopFeeder();
                 shooter.stop();
                 break;
             case OUTTAKING:
@@ -96,7 +101,7 @@ public class Superstructure extends SubsystemBase {
                         -SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                 indexer.setConveyorVelocity(
                         -SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
-                feeder.setFeederVelocity(-SuperstructureConstants.FEEDER_VELOCITY_RAD_PER_SEC);
+                indexer.setFeederVelocity(-SuperstructureConstants.FEEDER_VELOCITY_RAD_PER_SEC);
                 shooter.stop();
                 break;
             case SHOOTING:
@@ -105,8 +110,9 @@ public class Superstructure extends SubsystemBase {
                 intake.deployArm();
                 intake.setRollerVelocity(
                         SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
-                shooter.setVelocity(SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC);
-                if (shooter.atSetpoint()) {
+                shooter.setHoodAngle(shootingHoodAngleRad);
+                shooter.setVelocity(shootingVelocityRadPerSec);
+                if (shooter.atSetpoint() && shotReadyToFeed) {
                     if (shooterReadyTimestamp == 0.0) {
                         shooterReadyTimestamp = Timer.getFPGATimestamp();
                     }
@@ -120,24 +126,21 @@ public class Superstructure extends SubsystemBase {
                     commandShootingAgitation();
                     indexer.setConveyorVelocity(
                             SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
-                    feeder.setFeederVelocity(SuperstructureConstants.FEEDER_VELOCITY_RAD_PER_SEC);
+                    indexer.setFeederVelocity(SuperstructureConstants.FEEDER_VELOCITY_RAD_PER_SEC);
                 } else {
                     indexer.stop();
-                    feeder.stop();
                 }
                 break;
             case IDLE:
                 intake.stopRoller();
                 intake.stowArm();
                 shooter.stop();
-                feeder.stop();
                 indexer.stop();
                 break;
             case DEPLOYED_IDLE:
                 intake.stopRoller();
                 intake.deployArm();
                 shooter.stop();
-                feeder.stop();
                 indexer.stop();
                 break;
         }
@@ -159,6 +162,19 @@ public class Superstructure extends SubsystemBase {
         desiredGoal = null;
     }
 
+    public void setShootingRequest(
+            double velocityRadPerSec, double hoodAngleRad, boolean readyToFeed) {
+        shootingVelocityRadPerSec = velocityRadPerSec;
+        shootingHoodAngleRad = hoodAngleRad;
+        shotReadyToFeed = readyToFeed;
+    }
+
+    public void clearShootingRequest() {
+        shootingVelocityRadPerSec = SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC;
+        shootingHoodAngleRad = SuperstructureConstants.SHOOTER_HOOD_ANGLE_RAD;
+        shotReadyToFeed = true;
+    }
+
     public boolean atGoal() {
         if (currentGoal != desiredGoal) {
             return false;
@@ -169,8 +185,10 @@ public class Superstructure extends SubsystemBase {
 
         return switch (currentGoal) {
             case INTAKING -> intake.isDeployed() && indexer.isRunning();
-            case OUTTAKING -> intake.isDeployed() && indexer.isRunning() && feeder.isRunning();
-            case SHOOTING -> shooter.atSetpoint() && feedingLatched;
+            case OUTTAKING -> intake.isDeployed()
+                    && indexer.isConveyorRunning()
+                    && indexer.isFeederRunning();
+            case SHOOTING -> shooter.atSetpoint() && shotReadyToFeed && feedingLatched;
             case IDLE -> intake.isStowed();
             case DEPLOYED_IDLE -> intake.isDeployed();
         };
@@ -184,7 +202,6 @@ public class Superstructure extends SubsystemBase {
         intake.stowArm();
         intake.setRollerVelocity(0.0);
         indexer.stop();
-        feeder.stop();
         shooter.stop();
     }
 

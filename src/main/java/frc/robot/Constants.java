@@ -25,10 +25,10 @@ public class Constants {
     // Simulation
     public static final boolean useMapleSim = true;
 
-    // Robot physical constants
-    public static final double kRobotWidth = Units.inchesToMeters(32.0);
+    // Robot physical constants //TODO: Update these values for the bot
+    public static final double kRobotWidth = Units.inchesToMeters(26.5);
     public static final double kRobotMassKg = 39.0;
-    public static final double kRobotMomentOfInertia = 3.255; // kg * m^2
+    public static final double kRobotMomentOfInertia = 1.3417722158; // kg * m^2 did this one
     public static final double kCOGHeightMeters = 0.2;
 
     // Bot identity

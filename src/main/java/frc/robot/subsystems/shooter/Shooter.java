@@ -20,6 +20,14 @@ public class Shooter extends SubsystemBase {
         Logger.recordOutput("Shooter/MiddleVelocityRadPerSec", inputs.middleVelocity);
         Logger.recordOutput("Shooter/RightVelocityRadPerSec", inputs.rightVelocity);
         Logger.recordOutput("Shooter/VelocitySetpointRadPerSec", inputs.velocitySetpoint);
+        Logger.recordOutput("Shooter/HoodPositionRad", inputs.hoodPositionRad);
+        Logger.recordOutput("Shooter/HoodPositionDeg", Math.toDegrees(inputs.hoodPositionRad));
+        Logger.recordOutput("Shooter/HoodSetpointRad", inputs.hoodSetpointRad);
+        Logger.recordOutput("Shooter/HoodSetpointDeg", Math.toDegrees(inputs.hoodSetpointRad));
+        Logger.recordOutput(
+                "Shooter/HoodErrorRad", inputs.hoodSetpointRad - inputs.hoodPositionRad);
+        Logger.recordOutput("Shooter/HoodAtSetpoint", hoodAtSetpoint());
+        Logger.recordOutput("Shooter/HoodHardwareConfigured", inputs.hoodHardwareConfigured);
         Logger.recordOutput(
                 "Shooter/LeftVelocityErrorRadPerSec",
                 inputs.velocitySetpoint - inputs.leftVelocity);
@@ -39,6 +47,10 @@ public class Shooter extends SubsystemBase {
 
     public void setVelocity(double velocityRadPerSec) {
         io.setVelocity(velocityRadPerSec);
+    }
+
+    public void setHoodAngle(double angleRad) {
+        io.setHoodAngle(angleRad);
     }
 
     public void stop() {
@@ -61,6 +73,14 @@ public class Shooter extends SubsystemBase {
         return inputs.velocitySetpoint;
     }
 
+    public double getHoodPositionRad() {
+        return inputs.hoodPositionRad;
+    }
+
+    public double getHoodSetpointRad() {
+        return inputs.hoodSetpointRad;
+    }
+
     public boolean atSetpoint() {
         if (Math.abs(inputs.velocitySetpoint) < ShooterConstants.VELOCITY_TOLERANCE_RAD_PER_SEC) {
             return false;
@@ -71,7 +91,26 @@ public class Shooter extends SubsystemBase {
                 && Math.abs(inputs.velocitySetpoint - inputs.middleVelocity)
                         < ShooterConstants.VELOCITY_TOLERANCE_RAD_PER_SEC
                 && Math.abs(inputs.velocitySetpoint - inputs.rightVelocity)
+                        < ShooterConstants.VELOCITY_TOLERANCE_RAD_PER_SEC
+                && hoodAtSetpoint();
+    }
+
+    public boolean flywheelsAtSetpoint() {
+        if (Math.abs(inputs.velocitySetpoint) < ShooterConstants.VELOCITY_TOLERANCE_RAD_PER_SEC) {
+            return false;
+        }
+
+        return Math.abs(inputs.velocitySetpoint - inputs.leftVelocity)
+                        < ShooterConstants.VELOCITY_TOLERANCE_RAD_PER_SEC
+                && Math.abs(inputs.velocitySetpoint - inputs.middleVelocity)
+                        < ShooterConstants.VELOCITY_TOLERANCE_RAD_PER_SEC
+                && Math.abs(inputs.velocitySetpoint - inputs.rightVelocity)
                         < ShooterConstants.VELOCITY_TOLERANCE_RAD_PER_SEC;
+    }
+
+    public boolean hoodAtSetpoint() {
+        return Math.abs(inputs.hoodSetpointRad - inputs.hoodPositionRad)
+                < ShooterConstants.HOOD_POSITION_TOLERANCE_RAD;
     }
 
     public boolean isRunning() {
