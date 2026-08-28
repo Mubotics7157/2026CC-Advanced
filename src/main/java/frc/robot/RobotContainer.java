@@ -58,11 +58,11 @@ public class RobotContainer {
             RobotBase.isSimulation() ? new SimulatedRobotState() : null;
 
     private final DriveSubsystem driveSubsystem = buildDriveSystem();
-    private final VisionSubsystem visionSubsystem = buildVisionSystem();
-    private final Intake intake = buildIntake();
-    private final Indexer indexer = buildIndexer();
-    private final Shooter shooter = buildShooter();
-    private final Superstructure superstructure = new Superstructure(intake, indexer, shooter);
+    // private final VisionSubsystem visionSubsystem = buildVisionSystem();
+    // private final Intake intake = buildIntake();
+    // private final Indexer indexer = buildIndexer();
+    // private final Shooter shooter = buildShooter();
+    // private final Superstructure superstructure = new Superstructure(intake, indexer, shooter);
 
     private final DriveMaintainingHeadingCommand driveCommand =
             new DriveMaintainingHeadingCommand(
@@ -136,17 +136,17 @@ public class RobotContainer {
         driveSubsystem.setDefaultCommand(driveCommand);
         controlBoard.resetGyro().onTrue(Commands.runOnce(this::resetHeading));
         controlBoard.getWantToXWheels().whileTrue(driveSubsystem.applyRequest(() -> xWheels));
-        controlBoard.getWantIntake().whileTrue(IntakeFactory.setIntakingCommand(superstructure));
-        controlBoard.getWantOuttake().whileTrue(IntakeFactory.setOuttakingCommand(superstructure));
-        controlBoard
-                .getWantShoot()
-                .whileTrue(
-                        new ShootOnTheMoveCommand(
-                                driveSubsystem,
-                                robotState,
-                                superstructure,
-                                controlBoard::getThrottle,
-                                controlBoard::getStrafe));
+        // controlBoard.getWantIntake().whileTrue(IntakeFactory.setIntakingCommand(superstructure));
+        // controlBoard.getWantOuttake().whileTrue(IntakeFactory.setOuttakingCommand(superstructure));
+        // controlBoard
+        //         .getWantShoot()
+        //         .whileTrue(
+        //                 new ShootOnTheMoveCommand(
+        //                         driveSubsystem,
+        //                         robotState,
+        //                         superstructure,
+        //                         controlBoard::getThrottle,
+        //                         controlBoard::getStrafe));
     }
 
     public void resetHeading() {
@@ -168,25 +168,25 @@ public class RobotContainer {
         return driveSubsystem;
     }
 
-    public VisionSubsystem getVisionSubsystem() {
-        return visionSubsystem;
-    }
+    // public VisionSubsystem getVisionSubsystem() {
+    //     return visionSubsystem;
+    // }
 
-    public Intake getIntake() {
-        return intake;
-    }
+    // public Intake getIntake() {
+    //     return intake;
+    // }
 
-    public Indexer getIndexer() {
-        return indexer;
-    }
+    // public Indexer getIndexer() {
+    //     return indexer;
+    // }
 
-    public Shooter getShooter() {
-        return shooter;
-    }
+    // public Shooter getShooter() {
+    //     return shooter;
+    // }
 
-    public Superstructure getSuperstructure() {
-        return superstructure;
-    }
+    // public Superstructure getSuperstructure() {
+    //     return superstructure;
+    // }
 
     public RobotState getRobotState() {
         return robotState;
