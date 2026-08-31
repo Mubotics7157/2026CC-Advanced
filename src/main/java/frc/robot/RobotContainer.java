@@ -99,38 +99,38 @@ public class RobotContainer {
                 robotState);
     }
 
-    private VisionSubsystem buildVisionSystem() {
-        if (RobotBase.isSimulation()) {
-            return new VisionSubsystem(
-                    new VisionIOSimPhoton(robotState, simulatedRobotState), robotState);
-        }
-        return new VisionSubsystem(new VisionIOHardwareLimelight(robotState), robotState);
-    }
+    // private VisionSubsystem buildVisionSystem() {
+    //     if (RobotBase.isSimulation()) {
+    //         return new VisionSubsystem(
+    //                 new VisionIOSimPhoton(robotState, simulatedRobotState), robotState);
+    //     }
+    //     return new VisionSubsystem(new VisionIOHardwareLimelight(robotState), robotState);
+    // }
 
-    private Intake buildIntake() {
-        Intake intake;
-        if (RobotBase.isSimulation()) {
-            intake = new Intake(new IntakeIOSim());
-        } else {
-            intake = new Intake(new IntakeIOReal());
-        }
-        intake.resetArmEncoderToDefault();
-        return intake;
-    }
+    // private Intake buildIntake() {
+    //     Intake intake;
+    //     if (RobotBase.isSimulation()) {
+    //         intake = new Intake(new IntakeIOSim());
+    //     } else {
+    //         intake = new Intake(new IntakeIOReal());
+    //     }
+    //     intake.resetArmEncoderToDefault();
+    //     return intake;
+    // }
 
-    private Indexer buildIndexer() {
-        if (RobotBase.isSimulation()) {
-            return new Indexer(new IndexerIOSim());
-        }
-        return new Indexer(new IndexerIOReal());
-    }
+    // private Indexer buildIndexer() {
+    //     if (RobotBase.isSimulation()) {
+    //         return new Indexer(new IndexerIOSim());
+    //     }
+    //     return new Indexer(new IndexerIOReal());
+    // }
 
-    private Shooter buildShooter() {
-        if (RobotBase.isSimulation()) {
-            return new Shooter(new ShooterIOSim());
-        }
-        return new Shooter(new ShooterIOReal());
-    }
+    // private Shooter buildShooter() {
+    //     if (RobotBase.isSimulation()) {
+    //         return new Shooter(new ShooterIOSim());
+    //     }
+    //     return new Shooter(new ShooterIOReal());
+    // }
 
     private void configureBindings() {
         driveSubsystem.setDefaultCommand(driveCommand);
