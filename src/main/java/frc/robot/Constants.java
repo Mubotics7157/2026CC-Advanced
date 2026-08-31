@@ -27,7 +27,8 @@ public class Constants {
 
     // Robot physical constants //TODO: Update these values for the bot
     public static final double kRobotWidth = Units.inchesToMeters(26.5);
-    public static final double kRobotMassKg = Units.lbsToKilograms(40);//TODO:UPDATE THIS WHEN ROBOT GETS BUILT MORE
+    public static final double kRobotMassKg =
+            Units.lbsToKilograms(40); // TODO:UPDATE THIS WHEN ROBOT GETS BUILT MORE
     public static final double kRobotMomentOfInertia = 1.3417722158; // kg * m^2 did this one
     public static final double kCOGHeightMeters = 0.2;
 
