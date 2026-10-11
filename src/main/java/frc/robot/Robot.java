@@ -37,6 +37,7 @@ public class Robot extends LoggedRobot {
     private Command disabledCommand = Commands.none();
 
     private int loopCount = 0;
+    private int disabledLoopCounter = 0;
 
     public Robot() {
         Logger.recordMetadata("ProjectName", BuildConstants.MAVEN_NAME);
@@ -117,6 +118,24 @@ public class Robot extends LoggedRobot {
                 .getDriveSubsystem()
                 .getController()
                 .accept(PathPlannerTrajectory.makeStayInPlaceTrajectory());
+        robotContainer.getAutoModeSelector().invalidateCache();
+        disabledLoopCounter = 50;
+    }
+
+    @Override
+    public void disabledPeriodic() {
+        // File parsing and path construction are done while disabled, never as autonomous begins.
+        if (++disabledLoopCounter < 50
+                || !robotContainer.getAutoModeSelector().haveSelectionsChanged()) {
+            return;
+        }
+        disabledLoopCounter = 0;
+        autonomousCommand = robotContainer.getAutonomousCommand();
+        Logger.recordOutput("Auto/RegeneratedCommand", autonomousCommand.getName());
+        robotContainer
+                .getAutoModeSelector()
+                .getStartingPose(robotContainer.getRobotState()::isRedAlliance)
+                .ifPresent(pose -> Logger.recordOutput("Auto/StartingPose", pose));
     }
 
     @Override
@@ -131,7 +150,8 @@ public class Robot extends LoggedRobot {
                         .getStartingPose(() -> robotContainer.getRobotState().isRedAlliance());
         startingPose.ifPresent(robotContainer.getDriveSubsystem()::resetOdometry);
 
-        autonomousCommand = robotContainer.getAutonomousCommand();
+        // Usually prebuilt in disabledPeriodic. Build once here as a safe fallback.
+        if (autonomousCommand == null) autonomousCommand = robotContainer.getAutonomousCommand();
         if (autonomousCommand != null) {
             autonomousCommand.schedule();
         }

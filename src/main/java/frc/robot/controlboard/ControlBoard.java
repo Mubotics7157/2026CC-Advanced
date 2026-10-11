@@ -61,6 +61,11 @@ public class ControlBoard implements IDriveControlBoard, IButtonControlBoard {
     }
 
     @Override
+    public Trigger getWantHubPathFind() {
+        return driveControlBoard.getWantHubPathFind();
+    }
+
+    @Override
     public Trigger getWantToXWheels() {
         return buttonControlBoard.getWantToXWheels();
     }

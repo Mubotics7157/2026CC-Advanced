@@ -70,4 +70,9 @@ public class GamepadDriveControlBoard implements IDriveControlBoard {
     public Trigger getWantShoot() {
         return controller.rightTrigger();
     }
+
+    @Override
+    public Trigger getWantHubPathFind() {
+        return controller.povLeft();
+    }
 }

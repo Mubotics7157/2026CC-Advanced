@@ -1,128 +1,170 @@
 package frc.robot.auto;
 
+import com.team254.lib.pathplanner.commands.PathPlannerAuto;
 import com.team254.lib.pathplanner.util.FlippingUtil;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotContainer;
 import frc.robot.factories.AutoFactory;
-import frc.robot.lib.reefscape.ReefBranch;
+import frc.robot.lib.rebuilt.FieldLocation;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
+import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
+/** Dashboard configuration for all Rebuilt file, Choreo, and adaptive autonomous routines. */
 public class AutoModeSelector {
     public enum DesiredMode {
         DO_NOTHING,
-        PATHFIND_TO_FEEDER,
-        PATHFIND_TO_BARGE,
-        PATHFIND_TO_REEF_BRANCH
-    }
-
-    public enum StartingPosition {
-        LEFT("Left Side", new Pose2d(7.0, 7.0, Rotation2d.fromDegrees(225.0))),
-        MIDDLE("Middle Side", new Pose2d(7.2, 4.0, Rotation2d.fromDegrees(180.0))),
-        RIGHT("Right Side", new Pose2d(7.0, 1.0, Rotation2d.fromDegrees(135.0)));
-
-        private final String displayName;
-        private final Pose2d startingPose;
-
-        StartingPosition(String displayName, Pose2d startingPose) {
-            this.displayName = displayName;
-            this.startingPose = startingPose;
-        }
-
-        public String getDisplayName() {
-            return displayName;
-        }
-
-        public Pose2d getStartingPose() {
-            return startingPose;
-        }
+        PATHPLANNER_AUTO,
+        CHOREO_PATH,
+        ADAPTIVE_ROUTE,
+        PATHFIND_TO_LOCATION
     }
 
     private final RobotContainer container;
-
     private final LoggedDashboardChooser<DesiredMode> modeChooser =
             new LoggedDashboardChooser<>("Auto/Mode");
-    private final LoggedDashboardChooser<StartingPosition> startingPositionChooser =
-            new LoggedDashboardChooser<>("Auto/StartingPosition");
-    private final LoggedDashboardChooser<ReefBranch> reefBranchChooser =
-            new LoggedDashboardChooser<>("Auto/ReefBranch");
-    private final LoggedDashboardChooser<Boolean> useFirstLetterChooser =
-            new LoggedDashboardChooser<>("Auto/UseFirstLetter");
+    private final LoggedDashboardChooser<String> pathPlannerChooser =
+            new LoggedDashboardChooser<>("Auto/PathPlannerFile");
+    private final LoggedDashboardChooser<String> choreoChooser =
+            new LoggedDashboardChooser<>("Auto/ChoreoTrajectory");
+    private final LoggedDashboardChooser<FieldLocation> targetChooser =
+            new LoggedDashboardChooser<>("Auto/PathfindTarget");
+    private final LoggedDashboardChooser<FieldLocation> adaptiveFirstChooser =
+            new LoggedDashboardChooser<>("Auto/Adaptive/FirstTarget");
+    private final LoggedDashboardChooser<FieldLocation> adaptiveSecondChooser =
+            new LoggedDashboardChooser<>("Auto/Adaptive/SecondTarget");
+    private final LoggedDashboardChooser<FieldLocation> adaptiveThirdChooser =
+            new LoggedDashboardChooser<>("Auto/Adaptive/ThirdTarget");
+    private DesiredMode lastMode;
+    private String lastPath;
+    private String lastChoreo;
+    private FieldLocation lastTarget;
+    private FieldLocation lastAdaptiveFirst;
+    private FieldLocation lastAdaptiveSecond;
+    private FieldLocation lastAdaptiveThird;
+    private Optional<DriverStation.Alliance> lastAlliance = Optional.empty();
 
     public AutoModeSelector(RobotContainer container) {
         this.container = container;
-
         modeChooser.addDefaultOption("Do Nothing", DesiredMode.DO_NOTHING);
-        modeChooser.addOption("Pathfind: Feeder", DesiredMode.PATHFIND_TO_FEEDER);
-        modeChooser.addOption("Pathfind: Barge", DesiredMode.PATHFIND_TO_BARGE);
-        modeChooser.addOption("Pathfind: Reef Branch", DesiredMode.PATHFIND_TO_REEF_BRANCH);
-
-        startingPositionChooser.addDefaultOption(
-                StartingPosition.LEFT.getDisplayName(), StartingPosition.LEFT);
-        startingPositionChooser.addOption(
-                StartingPosition.MIDDLE.getDisplayName(), StartingPosition.MIDDLE);
-        startingPositionChooser.addOption(
-                StartingPosition.RIGHT.getDisplayName(), StartingPosition.RIGHT);
-
-        reefBranchChooser.addDefaultOption("AB", ReefBranch.AB);
-        reefBranchChooser.addOption("CD", ReefBranch.CD);
-        reefBranchChooser.addOption("EF", ReefBranch.EF);
-        reefBranchChooser.addOption("GH", ReefBranch.GH);
-        reefBranchChooser.addOption("IJ", ReefBranch.IJ);
-        reefBranchChooser.addOption("KL", ReefBranch.KL);
-
-        useFirstLetterChooser.addDefaultOption("Left/First", true);
-        useFirstLetterChooser.addOption("Right/Second", false);
+        modeChooser.addOption("PathPlanner File Auto", DesiredMode.PATHPLANNER_AUTO);
+        modeChooser.addOption("Choreo Trajectory", DesiredMode.CHOREO_PATH);
+        modeChooser.addOption("Adaptive Route", DesiredMode.ADAPTIVE_ROUTE);
+        modeChooser.addOption("Pathfind to Rebuilt Location", DesiredMode.PATHFIND_TO_LOCATION);
+        pathPlannerChooser.addDefaultOption("None", "");
+        for (String name : com.team254.lib.pathplanner.auto.AutoBuilder.getAllAutoNames())
+            pathPlannerChooser.addOption(name, name);
+        choreoChooser.addDefaultOption("None", "");
+        for (String name : AutoUtil.getChoreoTrajectoryNames()) choreoChooser.addOption(name, name);
+        configureLocationChooser(targetChooser, FieldLocation.HUB_NEAR);
+        configureLocationChooser(adaptiveFirstChooser, FieldLocation.DEPOT);
+        configureLocationChooser(adaptiveSecondChooser, FieldLocation.HUB_NEAR);
+        configureLocationChooser(adaptiveThirdChooser, FieldLocation.DEPOT);
     }
 
-    public LoggedDashboardChooser<DesiredMode> getModeChooser() {
-        return modeChooser;
+    private static void configureLocationChooser(
+            LoggedDashboardChooser<FieldLocation> chooser, FieldLocation defaultValue) {
+        chooser.addDefaultOption(displayName(defaultValue), defaultValue);
+        for (FieldLocation location : FieldLocation.values())
+            if (location != defaultValue) chooser.addOption(displayName(location), location);
     }
 
-    public LoggedDashboardChooser<StartingPosition> getStartingPositionChooser() {
-        return startingPositionChooser;
-    }
-
-    public Optional<Pose2d> getStartingPose(BooleanSupplier isRedAlliance) {
-        StartingPosition selected = startingPositionChooser.get();
-        if (selected == null) return Optional.empty();
-        Pose2d pose = selected.getStartingPose();
-        return Optional.of(isRedAlliance.getAsBoolean() ? FlippingUtil.flipFieldPose(pose) : pose);
+    private static String displayName(FieldLocation location) {
+        return location.name().replace('_', ' ');
     }
 
     public Command getAutonomousCommand() {
-        DesiredMode selectedMode = modeChooser.get();
-        if (selectedMode == null) {
+        DesiredMode mode = Optional.ofNullable(modeChooser.get()).orElse(DesiredMode.DO_NOTHING);
+        BooleanSupplier red = container.getRobotState()::isRedAlliance;
+        var drive = container.getDriveSubsystem();
+        var state = container.getRobotState();
+        Logger.recordOutput("Auto/SelectedMode", mode.name());
+        return switch (mode) {
+            case DO_NOTHING -> Commands.none();
+            case PATHPLANNER_AUTO -> loadPathPlannerAuto(pathPlannerChooser.get());
+            case CHOREO_PATH -> AutoUtil.followChoreoPath(
+                    drive, state, Optional.ofNullable(choreoChooser.get()).orElse(""), red);
+            case PATHFIND_TO_LOCATION -> AutoFactory.pathfindTo(
+                    drive, state, () -> selected(targetChooser, FieldLocation.HUB_NEAR), red);
+            case ADAPTIVE_ROUTE -> new AdaptiveAutoBuilder(drive, state, red)
+                    .targets(
+                            () -> selected(adaptiveFirstChooser, FieldLocation.DEPOT),
+                            () -> selected(adaptiveSecondChooser, FieldLocation.HUB_NEAR),
+                            () -> selected(adaptiveThirdChooser, FieldLocation.DEPOT))
+                    .visitFirstTarget(true)
+                    .visitSecondTarget(true)
+                    .visitThirdTarget(true)
+                    .build();
+        };
+    }
+
+    private static FieldLocation selected(
+            LoggedDashboardChooser<FieldLocation> chooser, FieldLocation fallback) {
+        return Optional.ofNullable(chooser.get()).orElse(fallback);
+    }
+
+    private Command loadPathPlannerAuto(String name) {
+        if (name == null || name.isBlank()) return Commands.none();
+        try {
+            return new PathPlannerAuto(name);
+        } catch (RuntimeException exception) {
+            DriverStation.reportError(
+                    "Unable to build PathPlanner auto " + name, exception.getStackTrace());
             return Commands.none();
         }
+    }
 
-        BooleanSupplier isRedAlliance = () -> container.getRobotState().isRedAlliance();
-        var drive = container.getDriveSubsystem();
-        var robotState = container.getRobotState();
+    public Optional<Pose2d> getStartingPose(BooleanSupplier isRed) {
+        DesiredMode mode = Optional.ofNullable(modeChooser.get()).orElse(DesiredMode.DO_NOTHING);
+        if (mode == DesiredMode.PATHPLANNER_AUTO) {
+            String name = pathPlannerChooser.get();
+            if (name != null && !name.isBlank())
+                try {
+                    return Optional.ofNullable(new PathPlannerAuto(name).getStartingPose())
+                            .map(
+                                    pose ->
+                                            isRed.getAsBoolean()
+                                                    ? FlippingUtil.flipFieldPose(pose)
+                                                    : pose);
+                } catch (RuntimeException ignored) {
+                }
+        }
+        if (mode == DesiredMode.CHOREO_PATH)
+            return AutoUtil.getChoreoStartingPose(
+                    Optional.ofNullable(choreoChooser.get()).orElse(""), isRed.getAsBoolean());
+        return Optional.empty();
+    }
 
-        boolean useFirstLetter = Optional.ofNullable(useFirstLetterChooser.get()).orElse(false);
+    public boolean haveSelectionsChanged() {
+        boolean changed =
+                modeChooser.get() != lastMode
+                        || !Optional.ofNullable(pathPlannerChooser.get())
+                                .orElse("")
+                                .equals(lastPath)
+                        || !Optional.ofNullable(choreoChooser.get()).orElse("").equals(lastChoreo)
+                        || targetChooser.get() != lastTarget
+                        || adaptiveFirstChooser.get() != lastAdaptiveFirst
+                        || adaptiveSecondChooser.get() != lastAdaptiveSecond
+                        || adaptiveThirdChooser.get() != lastAdaptiveThird
+                        || !DriverStation.getAlliance().equals(lastAlliance);
+        if (changed) {
+            lastMode = modeChooser.get();
+            lastPath = Optional.ofNullable(pathPlannerChooser.get()).orElse("");
+            lastChoreo = Optional.ofNullable(choreoChooser.get()).orElse("");
+            lastTarget = targetChooser.get();
+            lastAdaptiveFirst = adaptiveFirstChooser.get();
+            lastAdaptiveSecond = adaptiveSecondChooser.get();
+            lastAdaptiveThird = adaptiveThirdChooser.get();
+            lastAlliance = DriverStation.getAlliance();
+        }
+        return changed;
+    }
 
-        return switch (selectedMode) {
-            case DO_NOTHING -> Commands.none();
-            case PATHFIND_TO_FEEDER -> AutoFactory.getPathfindToFeederCommand(
-                    drive, robotState, () -> useFirstLetter, isRedAlliance);
-            case PATHFIND_TO_BARGE -> AutoFactory.getPathfindToBargeCommand(
-                    drive, robotState, isRedAlliance, null);
-            case PATHFIND_TO_REEF_BRANCH -> AutoFactory.getPathfindToReefCommand(
-                    drive,
-                    robotState,
-                    () -> Optional.ofNullable(reefBranchChooser.get()).orElse(ReefBranch.AB),
-                    () -> useFirstLetter,
-                    () -> 0.0,
-                    Commands::none,
-                    () -> true,
-                    isRedAlliance,
-                    false,
-                    false);
-        };
+    public void invalidateCache() {
+        lastMode = null;
     }
 }
