@@ -20,12 +20,16 @@ public class Shooter extends SubsystemBase {
         Logger.recordOutput("Shooter/MiddleVelocityRadPerSec", inputs.middleVelocity);
         Logger.recordOutput("Shooter/RightVelocityRadPerSec", inputs.rightVelocity);
         Logger.recordOutput("Shooter/VelocitySetpointRadPerSec", inputs.velocitySetpoint);
-        Logger.recordOutput("Shooter/HoodPositionRad", inputs.hoodPositionRad);
-        Logger.recordOutput("Shooter/HoodPositionDeg", Math.toDegrees(inputs.hoodPositionRad));
-        Logger.recordOutput("Shooter/HoodSetpointRad", inputs.hoodSetpointRad);
-        Logger.recordOutput("Shooter/HoodSetpointDeg", Math.toDegrees(inputs.hoodSetpointRad));
+        Logger.recordOutput("Shooter/Hood/LeftServoPosition", inputs.leftHoodServoPosition);
+        Logger.recordOutput("Shooter/Hood/RightServoPosition", inputs.rightHoodServoPosition);
+        Logger.recordOutput("Shooter/Hood/ServoSetpoint", inputs.hoodServoSetpoint);
         Logger.recordOutput(
-                "Shooter/HoodErrorRad", inputs.hoodSetpointRad - inputs.hoodPositionRad);
+                "Shooter/Hood/RequestedAngleRad",
+                ShooterConstants.servoPositionToHoodAngle(inputs.hoodServoSetpoint));
+        Logger.recordOutput(
+                "Shooter/Hood/RequestedAngleDeg",
+                Math.toDegrees(
+                        ShooterConstants.servoPositionToHoodAngle(inputs.hoodServoSetpoint)));
         Logger.recordOutput("Shooter/HoodAtSetpoint", hoodAtSetpoint());
         Logger.recordOutput("Shooter/HoodHardwareConfigured", inputs.hoodHardwareConfigured);
         Logger.recordOutput(
@@ -50,7 +54,7 @@ public class Shooter extends SubsystemBase {
     }
 
     public void setHoodAngle(double angleRad) {
-        io.setHoodAngle(angleRad);
+        io.setHoodServoPosition(ShooterConstants.hoodAngleToServoPosition(angleRad));
     }
 
     public void stop() {
@@ -74,11 +78,11 @@ public class Shooter extends SubsystemBase {
     }
 
     public double getHoodPositionRad() {
-        return inputs.hoodPositionRad;
+        return ShooterConstants.servoPositionToHoodAngle(inputs.hoodServoSetpoint);
     }
 
     public double getHoodSetpointRad() {
-        return inputs.hoodSetpointRad;
+        return ShooterConstants.servoPositionToHoodAngle(inputs.hoodServoSetpoint);
     }
 
     public boolean atSetpoint() {
@@ -109,8 +113,7 @@ public class Shooter extends SubsystemBase {
     }
 
     public boolean hoodAtSetpoint() {
-        return Math.abs(inputs.hoodSetpointRad - inputs.hoodPositionRad)
-                < ShooterConstants.HOOD_POSITION_TOLERANCE_RAD;
+        return inputs.hoodAtSetpoint;
     }
 
     public boolean isRunning() {

@@ -17,8 +17,7 @@ public class ShooterIOSim implements ShooterIO {
     private double middleAppliedVolts = 0.0;
     private double rightAppliedVolts = 0.0;
     private double velocitySetpoint = 0.0;
-    private double hoodPositionRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
-    private double hoodSetpointRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
+    private double hoodServoPosition = ShooterConstants.HOOD_SERVO_MIN_POSITION;
 
     public ShooterIOSim() {
         leftSim = createSim();
@@ -45,8 +44,10 @@ public class ShooterIOSim implements ShooterIO {
         inputs.rightCurrent = rightSim.getCurrentDrawAmps();
 
         inputs.velocitySetpoint = velocitySetpoint;
-        inputs.hoodSetpointRad = hoodSetpointRad;
-        inputs.hoodPositionRad = hoodPositionRad;
+        inputs.leftHoodServoPosition = hoodServoPosition;
+        inputs.rightHoodServoPosition = hoodServoPosition;
+        inputs.hoodServoSetpoint = hoodServoPosition;
+        inputs.hoodAtSetpoint = true;
         inputs.hoodHardwareConfigured = true;
     }
 
@@ -63,20 +64,18 @@ public class ShooterIOSim implements ShooterIO {
     }
 
     @Override
-    public void setHoodAngle(double angleRad) {
-        hoodSetpointRad =
+    public void setHoodServoPosition(double position) {
+        hoodServoPosition =
                 MathUtil.clamp(
-                        angleRad,
-                        ShooterConstants.HOOD_MIN_ANGLE_RAD,
-                        ShooterConstants.HOOD_MAX_ANGLE_RAD);
-        hoodPositionRad = hoodSetpointRad;
+                        position,
+                        ShooterConstants.HOOD_SERVO_MIN_POSITION,
+                        ShooterConstants.HOOD_SERVO_MAX_POSITION);
     }
 
     @Override
     public void stop() {
         velocitySetpoint = 0.0;
-        hoodSetpointRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
-        hoodPositionRad = hoodSetpointRad;
+        hoodServoPosition = ShooterConstants.HOOD_SERVO_MIN_POSITION;
         leftAppliedVolts = 0.0;
         middleAppliedVolts = 0.0;
         rightAppliedVolts = 0.0;

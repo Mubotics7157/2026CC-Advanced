@@ -22,6 +22,7 @@ public final class ShooterAiming {
             double timeOfFlightSeconds,
             double shooterVelocityRadPerSec,
             double hoodAngleRad,
+            double hoodServoPosition,
             double headingErrorRad,
             boolean inRange,
             boolean headingReady) {
@@ -71,6 +72,8 @@ public final class ShooterAiming {
                         && Math.abs(robotRelativeSpeeds.omegaRadiansPerSecond)
                                 < ShooterSetpoints.OMEGA_TOLERANCE_RAD_PER_SEC;
         boolean inRange = ShooterSetpoints.isInRange(distance);
+        double shooterVelocityRadPerSec = ShooterSetpoints.getVelocityRadPerSec(distance);
+        double hoodAngleRad = ShooterSetpoints.getHoodAngleRad(distance);
 
         ShotSolution solution =
                 new ShotSolution(
@@ -80,8 +83,9 @@ public final class ShooterAiming {
                         robotHeading,
                         distance,
                         timeOfFlight,
-                        ShooterSetpoints.getVelocityRadPerSec(distance),
-                        ShooterSetpoints.getHoodAngleRad(distance),
+                        shooterVelocityRadPerSec,
+                        hoodAngleRad,
+                        ShooterConstants.hoodAngleToServoPosition(hoodAngleRad),
                         headingError,
                         inRange,
                         headingReady);
@@ -125,6 +129,7 @@ public final class ShooterAiming {
                 "Shooter/Aiming/ShooterVelocityRadPerSec", solution.shooterVelocityRadPerSec());
         Logger.recordOutput("Shooter/Aiming/HoodAngleRad", solution.hoodAngleRad());
         Logger.recordOutput("Shooter/Aiming/HoodAngleDeg", Math.toDegrees(solution.hoodAngleRad()));
+        Logger.recordOutput("Shooter/Aiming/HoodServoPosition", solution.hoodServoPosition());
         Logger.recordOutput("Shooter/Aiming/HeadingErrorRad", solution.headingErrorRad());
         Logger.recordOutput("Shooter/Aiming/InRange", solution.inRange());
         Logger.recordOutput("Shooter/Aiming/HeadingReady", solution.headingReady());

@@ -13,9 +13,7 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Voltage;
-import edu.wpi.first.wpilibj.AnalogInput;
-import edu.wpi.first.wpilibj.DoubleSolenoid;
-import edu.wpi.first.wpilibj.PneumaticsModuleType;
+import edu.wpi.first.wpilibj.Servo;
 import java.util.Optional;
 
 public class ShooterIOReal implements ShooterIO {
@@ -37,12 +35,12 @@ public class ShooterIOReal implements ShooterIO {
     private final StatusSignal<Current> middleCurrent;
     private final StatusSignal<Current> rightCurrent;
 
-    private final Optional<DoubleSolenoid> primaryHoodPiston;
-    private final Optional<DoubleSolenoid> secondaryHoodPiston;
-    private final Optional<AnalogInput> hoodPositionSensor;
+    private final Optional<Servo> leftHoodServo;
+    private final Optional<Servo> rightHoodServo;
 
     private double velocitySetpoint = 0.0;
-    private double hoodSetpointRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
+    private double hoodServoSetpoint = ShooterConstants.HOOD_SERVO_MIN_POSITION;
+    private double hoodSetpointTimestampSeconds = Double.NEGATIVE_INFINITY;
 
     public ShooterIOReal() {
         leftMotor = new TalonFX(ShooterConstants.LEFT_MOTOR_ID, ShooterConstants.CAN_BUS);
@@ -65,19 +63,10 @@ public class ShooterIOReal implements ShooterIO {
         middleCurrent = middleMotor.getStatorCurrent();
         rightCurrent = rightMotor.getStatorCurrent();
 
-        primaryHoodPiston =
-                createHoodPiston(
-                        ShooterConstants.HOOD_PRIMARY_FORWARD_CHANNEL,
-                        ShooterConstants.HOOD_PRIMARY_REVERSE_CHANNEL);
-        secondaryHoodPiston =
-                createHoodPiston(
-                        ShooterConstants.HOOD_SECONDARY_FORWARD_CHANNEL,
-                        ShooterConstants.HOOD_SECONDARY_REVERSE_CHANNEL);
-        hoodPositionSensor =
-                ShooterConstants.HOOD_POSITION_SENSOR_CHANNEL >= 0
-                        ? Optional.of(
-                                new AnalogInput(ShooterConstants.HOOD_POSITION_SENSOR_CHANNEL))
-                        : Optional.empty();
+        leftHoodServo = createHoodServo(ShooterConstants.LEFT_HOOD_SERVO_PWM_CHANNEL);
+        rightHoodServo = createHoodServo(ShooterConstants.RIGHT_HOOD_SERVO_PWM_CHANNEL);
+        hoodSetpointTimestampSeconds = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+        setHoodServoPosition(hoodServoSetpoint);
 
         BaseStatusSignal.setUpdateFrequencyForAll(
                 ShooterConstants.STATUS_SIGNAL_UPDATE_FREQUENCY,
@@ -122,11 +111,17 @@ public class ShooterIOReal implements ShooterIO {
         inputs.rightCurrent = rightCurrent.getValueAsDouble();
 
         inputs.velocitySetpoint = velocitySetpoint;
-        inputs.hoodSetpointRad = hoodSetpointRad;
-        inputs.hoodPositionRad = getHoodPositionRad();
+        inputs.leftHoodServoPosition =
+                leftHoodServo.map(Servo::getPosition).orElse(hoodServoSetpoint);
+        inputs.rightHoodServoPosition =
+                rightHoodServo.map(Servo::getPosition).orElse(hoodServoSetpoint);
+        inputs.hoodServoSetpoint = hoodServoSetpoint;
+        inputs.hoodAtSetpoint =
+                isHoodHardwareConfigured()
+                        && edu.wpi.first.wpilibj.Timer.getFPGATimestamp()
+                                        - hoodSetpointTimestampSeconds
+                                >= ShooterConstants.HOOD_SERVO_SETTLE_TIME_SECONDS;
         inputs.hoodHardwareConfigured = isHoodHardwareConfigured();
-
-        updateHoodPistons(inputs.hoodPositionRad);
     }
 
     @Override
@@ -139,22 +134,27 @@ public class ShooterIOReal implements ShooterIO {
     }
 
     @Override
-    public void setHoodAngle(double angleRad) {
-        hoodSetpointRad =
+    public void setHoodServoPosition(double position) {
+        double clampedPosition =
                 MathUtil.clamp(
-                        angleRad,
-                        ShooterConstants.HOOD_MIN_ANGLE_RAD,
-                        ShooterConstants.HOOD_MAX_ANGLE_RAD);
+                        position,
+                        ShooterConstants.HOOD_SERVO_MIN_POSITION,
+                        ShooterConstants.HOOD_SERVO_MAX_POSITION);
+        if (Math.abs(clampedPosition - hoodServoSetpoint) > 1.0e-6) {
+            hoodSetpointTimestampSeconds = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+        }
+        hoodServoSetpoint = clampedPosition;
+        leftHoodServo.ifPresent(servo -> servo.setPosition(hoodServoSetpoint));
+        rightHoodServo.ifPresent(servo -> servo.setPosition(hoodServoSetpoint));
     }
 
     @Override
     public void stop() {
         velocitySetpoint = 0.0;
-        hoodSetpointRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
+        setHoodServoPosition(ShooterConstants.HOOD_SERVO_MIN_POSITION);
         leftMotor.stopMotor();
         middleMotor.stopMotor();
         rightMotor.stopMotor();
-        setHoodPistons(DoubleSolenoid.Value.kReverse);
     }
 
     @Override
@@ -186,60 +186,14 @@ public class ShooterIOReal implements ShooterIO {
         slot0.kD = ShooterConstants.SHOOTER_KD.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
     }
 
-    private static Optional<DoubleSolenoid> createHoodPiston(
-            int forwardChannel, int reverseChannel) {
-        if (forwardChannel < 0 || reverseChannel < 0) {
+    private static Optional<Servo> createHoodServo(int pwmChannel) {
+        if (pwmChannel < 0) {
             return Optional.empty();
         }
-
-        return Optional.of(
-                new DoubleSolenoid(
-                        ShooterConstants.PNEUMATICS_MODULE_ID,
-                        PneumaticsModuleType.REVPH,
-                        forwardChannel,
-                        reverseChannel));
-    }
-
-    private double getHoodPositionRad() {
-        if (hoodPositionSensor.isEmpty()) {
-            return ShooterConstants.HOOD_MIN_ANGLE_RAD;
-        }
-
-        double normalized =
-                MathUtil.inverseInterpolate(
-                        ShooterConstants.HOOD_SENSOR_MIN_VOLTS,
-                        ShooterConstants.HOOD_SENSOR_MAX_VOLTS,
-                        hoodPositionSensor.get().getVoltage());
-        return MathUtil.interpolate(
-                ShooterConstants.HOOD_MIN_ANGLE_RAD,
-                ShooterConstants.HOOD_MAX_ANGLE_RAD,
-                MathUtil.clamp(normalized, 0.0, 1.0));
+        return Optional.of(new Servo(pwmChannel));
     }
 
     private boolean isHoodHardwareConfigured() {
-        return hoodPositionSensor.isPresent()
-                && primaryHoodPiston.isPresent()
-                && secondaryHoodPiston.isPresent();
-    }
-
-    private void updateHoodPistons(double hoodPositionRad) {
-        if (!isHoodHardwareConfigured()) {
-            setHoodPistons(DoubleSolenoid.Value.kOff);
-            return;
-        }
-
-        double errorRad = hoodSetpointRad - hoodPositionRad;
-        if (Math.abs(errorRad) < ShooterConstants.HOOD_POSITION_TOLERANCE_RAD) {
-            setHoodPistons(DoubleSolenoid.Value.kOff);
-        } else if (errorRad > 0.0) {
-            setHoodPistons(DoubleSolenoid.Value.kForward);
-        } else {
-            setHoodPistons(DoubleSolenoid.Value.kReverse);
-        }
-    }
-
-    private void setHoodPistons(DoubleSolenoid.Value value) {
-        primaryHoodPiston.ifPresent(piston -> piston.set(value));
-        secondaryHoodPiston.ifPresent(piston -> piston.set(value));
+        return leftHoodServo.isPresent() && rightHoodServo.isPresent();
     }
 }

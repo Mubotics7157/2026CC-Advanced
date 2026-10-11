@@ -1,6 +1,7 @@
 package frc.robot.subsystems.shooter;
 
 import com.ctre.phoenix6.CANBus;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.util.Units;
 import frc.robot.util.LoggedTunableNumber;
 
@@ -23,20 +24,41 @@ public final class ShooterConstants {
             Units.rotationsPerMinuteToRadiansPerSecond(100.0);
     public static final double HOOD_MIN_ANGLE_RAD = Units.degreesToRadians(20.0);
     public static final double HOOD_MAX_ANGLE_RAD = Units.degreesToRadians(65.0);
-    public static final double HOOD_POSITION_TOLERANCE_RAD = Units.degreesToRadians(1.5);
 
-    /*
-     * Set these to the real PCM/PH and sensor channels. With HOOD_POSITION_SENSOR_CHANNEL < 0,
-     * hardware will command no hood pneumatics and will log the requested angle for bring-up.
+    /** Calibrated PWM travel limits for both hood servos. */
+    public static final double HOOD_SERVO_MIN_POSITION = 0.01;
+
+    public static final double HOOD_SERVO_MAX_POSITION = 0.77;
+
+    /**
+     * RoboRIO PWM ports for the left and right hood servos. Set these before enabling the real
+     * robot. A negative channel intentionally leaves that servo disabled for safe bring-up.
      */
-    public static final int PNEUMATICS_MODULE_ID = 1;
-    public static final int HOOD_PRIMARY_FORWARD_CHANNEL = -1;
-    public static final int HOOD_PRIMARY_REVERSE_CHANNEL = -1;
-    public static final int HOOD_SECONDARY_FORWARD_CHANNEL = -1;
-    public static final int HOOD_SECONDARY_REVERSE_CHANNEL = -1;
-    public static final int HOOD_POSITION_SENSOR_CHANNEL = -1;
-    public static final double HOOD_SENSOR_MIN_VOLTS = 0.5;
-    public static final double HOOD_SENSOR_MAX_VOLTS = 4.5;
+    public static final int LEFT_HOOD_SERVO_PWM_CHANNEL = -1;
+
+    public static final int RIGHT_HOOD_SERVO_PWM_CHANNEL = -1;
+
+    /** Conservative delay before feeding because hobby servos do not report measured position. */
+    public static final double HOOD_SERVO_SETTLE_TIME_SECONDS = 0.25;
+
+    public static double hoodAngleToServoPosition(double hoodAngleRad) {
+        double normalizedAngle =
+                MathUtil.inverseInterpolate(HOOD_MIN_ANGLE_RAD, HOOD_MAX_ANGLE_RAD, hoodAngleRad);
+        return MathUtil.interpolate(
+                HOOD_SERVO_MIN_POSITION,
+                HOOD_SERVO_MAX_POSITION,
+                MathUtil.clamp(normalizedAngle, 0.0, 1.0));
+    }
+
+    public static double servoPositionToHoodAngle(double servoPosition) {
+        double normalizedPosition =
+                MathUtil.inverseInterpolate(
+                        HOOD_SERVO_MIN_POSITION, HOOD_SERVO_MAX_POSITION, servoPosition);
+        return MathUtil.interpolate(
+                HOOD_MIN_ANGLE_RAD,
+                HOOD_MAX_ANGLE_RAD,
+                MathUtil.clamp(normalizedPosition, 0.0, 1.0));
+    }
 
     public static final LoggedTunableNumber SHOOTER_KS =
             new LoggedTunableNumber("Shooter/Shooter/kS", 0.0);

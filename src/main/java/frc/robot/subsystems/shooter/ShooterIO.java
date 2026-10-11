@@ -18,8 +18,13 @@ public interface ShooterIO {
         public double rightCurrent = 0.0;
 
         public double velocitySetpoint = 0.0;
-        public double hoodPositionRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
-        public double hoodSetpointRad = ShooterConstants.HOOD_MIN_ANGLE_RAD;
+
+        /** Commanded servo positions; PWM servos do not provide mechanism-position feedback. */
+        public double leftHoodServoPosition = ShooterConstants.HOOD_SERVO_MIN_POSITION;
+
+        public double rightHoodServoPosition = ShooterConstants.HOOD_SERVO_MIN_POSITION;
+        public double hoodServoSetpoint = ShooterConstants.HOOD_SERVO_MIN_POSITION;
+        public boolean hoodAtSetpoint = false;
         public boolean hoodHardwareConfigured = false;
     }
 
@@ -27,7 +32,7 @@ public interface ShooterIO {
 
     default void setVelocity(double velocityRadPerSec) {}
 
-    default void setHoodAngle(double angleRad) {}
+    default void setHoodServoPosition(double position) {}
 
     default void stop() {}
 
