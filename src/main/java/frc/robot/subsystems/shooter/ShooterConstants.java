@@ -12,9 +12,9 @@ public final class ShooterConstants {
 
     private static final int SHOOTER_TUNABLE_ID = "ShooterConstantsShooter".hashCode();
 
-    public static final int LEFT_MOTOR_ID = 24;
-    public static final int MIDDLE_MOTOR_ID = 16;
-    public static final int RIGHT_MOTOR_ID = 20;
+    public static final int LEFT_MOTOR_ID = 41;
+    public static final int MIDDLE_MOTOR_ID = 42;
+    public static final int RIGHT_MOTOR_ID = 43;
     public static final CANBus CAN_BUS = new CANBus("swerve");
 
     public static final double SHOOTER_GEAR_RATIO = 1.0;
