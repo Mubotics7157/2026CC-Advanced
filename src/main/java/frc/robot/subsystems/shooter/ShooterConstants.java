@@ -15,7 +15,7 @@ public final class ShooterConstants {
     public static final int LEFT_MOTOR_ID = 41;
     public static final int MIDDLE_MOTOR_ID = 42;
     public static final int RIGHT_MOTOR_ID = 43;
-    public static final CANBus CAN_BUS = new CANBus("swerve");
+    public static final CANBus CAN_BUS = new CANBus("rio");
 
     public static final double SHOOTER_GEAR_RATIO = 1.0;
     public static final double SHOOTER_STATOR_CURRENT_LIMIT = 120.0;

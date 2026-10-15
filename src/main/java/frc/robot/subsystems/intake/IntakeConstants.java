@@ -12,7 +12,7 @@ public final class IntakeConstants {
 
     public static final int ROLLER_MOTOR_ID = 22;
     public static final int ARM_MOTOR_ID = 21;
-    public static final CANBus CAN_BUS = new CANBus("swerve");
+    public static final CANBus CAN_BUS = new CANBus("rio");
 
     public static final double ROLLER_GEAR_RATIO = 1.42857143;
     public static final double ARM_GEAR_RATIO = 47.1428571;

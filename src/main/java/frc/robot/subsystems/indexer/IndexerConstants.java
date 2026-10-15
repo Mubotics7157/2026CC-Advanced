@@ -13,7 +13,7 @@ public final class IndexerConstants {
 
     public static final int CONVEYOR_MOTOR_ID = 31;
     public static final int FEEDER_MOTOR_ID = 32;
-    public static final CANBus CAN_BUS = new CANBus("swerve");
+    public static final CANBus CAN_BUS = new CANBus("rio");
 
     public static final double CONVEYOR_GEAR_RATIO = 9.58333333;
     public static final double FEEDER_GEAR_RATIO = 1.0;
