@@ -25,8 +25,7 @@ import edu.wpi.first.units.measure.Voltage;
 public class IntakeIOReal implements IntakeIO {
     private final TalonFX rollerMotor =
             new TalonFX(IntakeConstants.ROLLER_MOTOR_ID, IntakeConstants.CAN_BUS);
-    private final TalonFX leftRollerMotor =
-            new TalonFX(IntakeConstants.LEFT_ROLLER_MOTOR_ID, IntakeConstants.CAN_BUS);
+
     private final TalonFX armMotor =
             new TalonFX(IntakeConstants.ARM_MOTOR_ID, IntakeConstants.CAN_BUS);
     private final VelocityTorqueCurrentFOC rollerVelocityRequest =
@@ -54,8 +53,6 @@ public class IntakeIOReal implements IntakeIO {
         rollerConfig.Feedback.SensorToMechanismRatio = IntakeConstants.ROLLER_GEAR_RATIO;
         applyRollerGains(rollerConfig.Slot0);
         rollerMotor.getConfigurator().apply(rollerConfig);
-        leftRollerMotor.setControl(
-                new Follower(IntakeConstants.ROLLER_MOTOR_ID, MotorAlignmentValue.Opposed));
 
         var armConfig = new TalonFXConfiguration();
         armConfig.MotorOutput.NeutralMode = NeutralModeValue.Brake;
@@ -86,7 +83,6 @@ public class IntakeIOReal implements IntakeIO {
                 armAppliedVolts,
                 armCurrent);
         rollerMotor.optimizeBusUtilization();
-        leftRollerMotor.optimizeBusUtilization();
         armMotor.optimizeBusUtilization();
     }
 

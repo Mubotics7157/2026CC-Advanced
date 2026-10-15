@@ -11,7 +11,6 @@ public final class IntakeConstants {
     private static final int ARM_TUNABLE_ID = "IntakeConstantsArm".hashCode();
 
     public static final int ROLLER_MOTOR_ID = 22;
-    public static final int LEFT_ROLLER_MOTOR_ID = 23;
     public static final int ARM_MOTOR_ID = 21;
     public static final CANBus CAN_BUS = new CANBus("swerve");
 
