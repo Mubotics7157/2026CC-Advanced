@@ -84,7 +84,7 @@ public class CompTunerConstants {
 
     // CAN bus that the devices are located on;
     // All swerve devices must share the same CAN bus
-    public static final CANBus kCANBus = new CANBus("rio", "./logs/example.hoot");
+    public static final CANBus kCANBus = new CANBus("", "./logs/example.hoot");
 
     // Measured robot speed (m/s) at 12 V applied output;
     // This is NOT the desired max robot speed - see MaxSpeed in RobotContainer instead;
@@ -102,7 +102,7 @@ public class CompTunerConstants {
     private static final boolean kInvertLeftSide = false;
     private static final boolean kInvertRightSide = true;
 
-    private static final int kPigeonId = 40;
+    private static final int kPigeonId = 13;
 
     // These are only used for simulation
     private static final MomentOfInertia kSteerInertia = KilogramSquareMeters.of(0.01);

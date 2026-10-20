@@ -84,7 +84,7 @@ public class PracTunerConstants {
 
     // CAN bus that the devices are located on;
     // All swerve devices must share the same CAN bus
-    public static final CANBus kCANBus = new CANBus("rio", "./logs/example.hoot");
+    public static final CANBus kCANBus = new CANBus("", "./logs/example.hoot");
 
     // Measured robot speed (m/s) at 12 V applied output;
     // This is NOT the desired max robot speed - see MaxSpeed in RobotContainer instead;
