@@ -34,9 +34,9 @@ public final class ShooterConstants {
      * RoboRIO PWM ports for the left and right hood servos. Set these before enabling the real
      * robot. A negative channel intentionally leaves that servo disabled for safe bring-up.
      */
-    public static final int LEFT_HOOD_SERVO_PWM_CHANNEL = -1;
+    public static final int LEFT_HOOD_SERVO_PWM_CHANNEL = 7;
 
-    public static final int RIGHT_HOOD_SERVO_PWM_CHANNEL = -1;
+    public static final int RIGHT_HOOD_SERVO_PWM_CHANNEL = 4;
 
     /** Conservative delay before feeding because hobby servos do not report measured position. */
     public static final double HOOD_SERVO_SETTLE_TIME_SECONDS = 0.25;
