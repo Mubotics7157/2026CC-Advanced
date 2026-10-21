@@ -1,6 +1,7 @@
 package frc.robot.subsystems.intake;
 
 import com.ctre.phoenix6.CANBus;
+import edu.wpi.first.math.util.Units;
 import frc.robot.util.LoggedTunableNumber;
 
 /** Constants for the rotating forebar intake and its rollers. */
@@ -19,8 +20,8 @@ public final class IntakeConstants {
 
     // Replace these preliminary positions, gains, and motion constraints after mechanism tuning.
     public static final double ARM_STOWED_POSITION_RAD = 0.0;
-    public static final double ARM_DEPLOYED_POSITION_RAD = -2.2;
-    public static final double ARM_AGITATE_POSITION_RAD = -0.3;
+    public static final double ARM_DEPLOYED_POSITION_RAD = Units.rotationsToRadians(0.28);
+    public static final double ARM_AGITATE_POSITION_RAD = Units.rotationsToRadians(0.1259);
     public static final double ARM_POSITION_TOLERANCE_RAD = 0.15;
     public static final double ARM_DEADZONE_TOLERANCE_RAD = 0.15;
 
