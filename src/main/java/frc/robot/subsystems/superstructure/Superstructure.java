@@ -105,7 +105,7 @@ public class Superstructure extends SubsystemBase {
                 shooter.stop();
                 break;
             case SHOOTING:
-                // Keep the forebar active while feeding. There is intentionally no turret or
+                // Keep the forebar active while feeding.
                 // arm-retracted shooting interlock on this robot.
                 intake.deployArm();
                 intake.setRollerVelocity(
