@@ -28,6 +28,16 @@ public final class ShooterFactory {
                 .withName("setShootingCommand");
     }
 
+    /**
+     * Command to toggle superstructure dumb mode on/off.
+     *
+     * @param superstructure The superstructure subsystem
+     * @return Instant command that toggles dumb mode
+     */
+    public static Command toggleDumbModeCommand(Superstructure superstructure) {
+        return Commands.runOnce(superstructure::toggleDumbMode).withName("toggleDumbModeCommand");
+    }
+
     // TODO: IMPLEMENT FERRY SHOT WITH CC STUFF
     // /**
     //  * Command to ferry shoot toward the alliance corner. Switches robot target to the alliance

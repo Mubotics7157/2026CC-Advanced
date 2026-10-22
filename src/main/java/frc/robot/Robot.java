@@ -161,6 +161,8 @@ public class Robot extends LoggedRobot {
     public void teleopInit() {
         disabledCommand.cancel();
         autonomousCommand.cancel();
+        // Revert any forced dumb mode so teleop starts with normal tolerance gating.
+        robotContainer.getSuperstructure().setDumbModeEnabled(false);
     }
 
     @Override

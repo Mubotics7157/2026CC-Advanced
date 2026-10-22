@@ -13,7 +13,9 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.auto.AutoModeSelector;
 import frc.robot.commands.DriveMaintainingHeadingCommand;
+import frc.robot.commands.ShootOnTheMoveCommand;
 import frc.robot.controlboard.ControlBoard;
+import frc.robot.factories.IntakeFactory;
 import frc.robot.factories.AutoFactory;
 import frc.robot.lib.rebuilt.FieldLocation;
 import frc.robot.lib.util.MathHelpers;
@@ -22,8 +24,21 @@ import frc.robot.subsystems.drive.DriveConstants;
 import frc.robot.subsystems.drive.DriveIOHardware;
 import frc.robot.subsystems.drive.DriveIOSim;
 import frc.robot.subsystems.drive.DriveSubsystem;
+import frc.robot.subsystems.indexer.Indexer;
+import frc.robot.subsystems.indexer.IndexerIOReal;
+import frc.robot.subsystems.indexer.IndexerIOSim;
+import frc.robot.subsystems.intake.Intake;
+import frc.robot.subsystems.intake.IntakeIOReal;
+import frc.robot.subsystems.intake.IntakeIOSim;
+import frc.robot.subsystems.shooter.Shooter;
+import frc.robot.subsystems.shooter.ShooterIOReal;
+import frc.robot.subsystems.shooter.ShooterIOSim;
+import frc.robot.subsystems.superstructure.Superstructure;
 import frc.robot.subsystems.superstructure.SuperstructureConstants;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
+import frc.robot.subsystems.vision.VisionIOHardwareLimelight;
+import frc.robot.subsystems.vision.VisionIOSimPhoton;
+import frc.robot.subsystems.vision.VisionSubsystem;
 import frc.robot.subsystems.vision.VisionIOHardwareLimelight;
 import frc.robot.subsystems.vision.VisionIOSimPhoton;
 import frc.robot.subsystems.vision.VisionSubsystem;
@@ -49,10 +64,10 @@ public class RobotContainer {
 
     private final DriveSubsystem driveSubsystem = buildDriveSystem();
     private final VisionSubsystem visionSubsystem = buildVisionSystem();
-    // private final Intake intake = buildIntake();
-    // private final Indexer indexer = buildIndexer();
-    // private final Shooter shooter = buildShooter();
-    // private final Superstructure superstructure = new Superstructure(intake, indexer, shooter);
+    private final Intake intake = buildIntake();
+    private final Indexer indexer = buildIndexer();
+    private final Shooter shooter = buildShooter();
+    private final Superstructure superstructure = new Superstructure(intake, indexer, shooter);
 
     private final DriveMaintainingHeadingCommand driveCommand =
             new DriveMaintainingHeadingCommand(
@@ -122,30 +137,30 @@ public class RobotContainer {
                         () -> 0.0));
     }
 
-    // private Intake buildIntake() {
-    //     Intake intake;
-    //     if (RobotBase.isSimulation()) {
-    //         intake = new Intake(new IntakeIOSim());
-    //     } else {
-    //         intake = new Intake(new IntakeIOReal());
-    //     }
-    //     intake.resetArmEncoderToDefault();
-    //     return intake;
-    // }
+    private Intake buildIntake() {
+        Intake intake;
+        if (RobotBase.isSimulation()) {
+            intake = new Intake(new IntakeIOSim());
+        } else {
+            intake = new Intake(new IntakeIOReal());
+        }
+        intake.resetArmEncoderToDefault();
+        return intake;
+    }
 
-    // private Indexer buildIndexer() {
-    //     if (RobotBase.isSimulation()) {
-    //         return new Indexer(new IndexerIOSim());
-    //     }
-    //     return new Indexer(new IndexerIOReal());
-    // }
+    private Indexer buildIndexer() {
+        if (RobotBase.isSimulation()) {
+            return new Indexer(new IndexerIOSim());
+        }
+        return new Indexer(new IndexerIOReal());
+    }
 
-    // private Shooter buildShooter() {
-    //     if (RobotBase.isSimulation()) {
-    //         return new Shooter(new ShooterIOSim());
-    //     }
-    //     return new Shooter(new ShooterIOReal());
-    // }
+    private Shooter buildShooter() {
+        if (RobotBase.isSimulation()) {
+            return new Shooter(new ShooterIOSim());
+        }
+        return new Shooter(new ShooterIOReal());
+    }
 
     private void configureBindings() {
         driveSubsystem.setDefaultCommand(driveCommand);
@@ -171,6 +186,25 @@ public class RobotContainer {
         //                         superstructure,
         //                         controlBoard::getThrottle,
         //                         controlBoard::getStrafe));
+        controlBoard.getWantIntake().whileTrue(IntakeFactory.setIntakingCommand(superstructure));
+        controlBoard.getWantOuttake().whileTrue(IntakeFactory.setOuttakingCommand(superstructure));
+        controlBoard
+                .getWantShoot()
+                .whileTrue(
+                        new ShootOnTheMoveCommand(
+                                driveSubsystem,
+                                robotState,
+                                superstructure,
+                                controlBoard::getThrottle,
+                                controlBoard::getStrafe));
+
+        // POV Right: toggle "dumb mode" — while active, SHOOTING bypasses hood and flywheel
+        // setpoint checks and feeds immediately once the robot has moved into position.
+        controlBoard
+                .getWantToggleDumbMode()
+                .onTrue(
+                        Commands.runOnce(superstructure::toggleDumbMode)
+                                .withName("Toggle Dumb Mode"));
     }
 
     public void resetHeading() {
@@ -196,21 +230,21 @@ public class RobotContainer {
         return visionSubsystem;
     }
 
-    // public Intake getIntake() {
-    //     return intake;
-    // }
+    public Intake getIntake() {
+        return intake;
+    }
 
-    // public Indexer getIndexer() {
-    //     return indexer;
-    // }
+    public Indexer getIndexer() {
+        return indexer;
+    }
 
-    // public Shooter getShooter() {
-    //     return shooter;
-    // }
+    public Shooter getShooter() {
+        return shooter;
+    }
 
-    // public Superstructure getSuperstructure() {
-    //     return superstructure;
-    // }
+    public Superstructure getSuperstructure() {
+        return superstructure;
+    }
 
     public RobotState getRobotState() {
         return robotState;

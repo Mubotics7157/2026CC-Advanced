@@ -55,7 +55,7 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
             RobotState robotState,
             SwerveDrivetrainConstants driveTrainConstants,
             SwerveModuleConstants<?, ?, ?>... modules) {
-        super(TalonFX::new, TalonFX::new, CANcoder::new, driveTrainConstants, 250.0, modules);
+        super(TalonFX::new, TalonFX::new, CANcoder::new, driveTrainConstants, 100.0, modules);
         this.robotState = robotState;
         telemetryConsumer_ =
                 swerveDriveState -> {
@@ -74,9 +74,9 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
         accelerationX = getPigeon2().getAccelerationX();
         accelerationY = getPigeon2().getAccelerationY();
 
-        BaseStatusSignal.setUpdateFrequencyForAll(250, angularYawVelocity);
+        BaseStatusSignal.setUpdateFrequencyForAll(100, angularYawVelocity);
         BaseStatusSignal.setUpdateFrequencyForAll(
-                100,
+                50,
                 angularPitchVelocity,
                 angularRollVelocity,
                 roll,

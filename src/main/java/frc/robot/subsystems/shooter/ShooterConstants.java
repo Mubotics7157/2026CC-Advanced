@@ -12,16 +12,17 @@ public final class ShooterConstants {
 
     private static final int SHOOTER_TUNABLE_ID = "ShooterConstantsShooter".hashCode();
 
-    public static final int LEFT_MOTOR_ID = 24;
-    public static final int MIDDLE_MOTOR_ID = 16;
-    public static final int RIGHT_MOTOR_ID = 20;
-    public static final CANBus CAN_BUS = new CANBus("swerve");
+    public static final int LEFT_MOTOR_ID = 41;
+    public static final int MIDDLE_MOTOR_ID = 42;
+    public static final int RIGHT_MOTOR_ID = 43;
+    public static final CANBus CAN_BUS = new CANBus("rio");
 
     public static final double SHOOTER_GEAR_RATIO = 1.0;
     public static final double SHOOTER_STATOR_CURRENT_LIMIT = 120.0;
 
     public static final double VELOCITY_TOLERANCE_RAD_PER_SEC =
-            Units.rotationsPerMinuteToRadiansPerSecond(100.0);
+            Units.rotationsPerMinuteToRadiansPerSecond(
+                    10000.0); // TODO: Update this value after mechanism tuning.
     public static final double HOOD_MIN_ANGLE_RAD = Units.degreesToRadians(20.0);
     public static final double HOOD_MAX_ANGLE_RAD = Units.degreesToRadians(65.0);
 
@@ -34,9 +35,9 @@ public final class ShooterConstants {
      * RoboRIO PWM ports for the left and right hood servos. Set these before enabling the real
      * robot. A negative channel intentionally leaves that servo disabled for safe bring-up.
      */
-    public static final int LEFT_HOOD_SERVO_PWM_CHANNEL = -1;
+    public static final int LEFT_HOOD_SERVO_PWM_CHANNEL = 7;
 
-    public static final int RIGHT_HOOD_SERVO_PWM_CHANNEL = -1;
+    public static final int RIGHT_HOOD_SERVO_PWM_CHANNEL = 4;
 
     /** Conservative delay before feeding because hobby servos do not report measured position. */
     public static final double HOOD_SERVO_SETTLE_TIME_SECONDS = 0.25;

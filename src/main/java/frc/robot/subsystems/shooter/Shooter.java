@@ -43,7 +43,7 @@ public class Shooter extends SubsystemBase {
                 inputs.velocitySetpoint - inputs.rightVelocity);
         Logger.recordOutput("Shooter/AtSetpoint", atSetpoint());
         Logger.recordOutput("Shooter/IsRunning", isRunning());
-
+        Logger.recordOutput("Shooter/FlywheelAtSetpoint", atSetpoint());
         if (ShooterConstants.hasAnyShooterPIDChanged()) {
             io.updateShooterConfig();
         }

@@ -5,14 +5,12 @@ import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.MotionMagicExpoTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
-import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.util.Units;
@@ -25,8 +23,7 @@ import edu.wpi.first.units.measure.Voltage;
 public class IntakeIOReal implements IntakeIO {
     private final TalonFX rollerMotor =
             new TalonFX(IntakeConstants.ROLLER_MOTOR_ID, IntakeConstants.CAN_BUS);
-    private final TalonFX leftRollerMotor =
-            new TalonFX(IntakeConstants.LEFT_ROLLER_MOTOR_ID, IntakeConstants.CAN_BUS);
+
     private final TalonFX armMotor =
             new TalonFX(IntakeConstants.ARM_MOTOR_ID, IntakeConstants.CAN_BUS);
     private final VelocityTorqueCurrentFOC rollerVelocityRequest =
@@ -54,8 +51,6 @@ public class IntakeIOReal implements IntakeIO {
         rollerConfig.Feedback.SensorToMechanismRatio = IntakeConstants.ROLLER_GEAR_RATIO;
         applyRollerGains(rollerConfig.Slot0);
         rollerMotor.getConfigurator().apply(rollerConfig);
-        leftRollerMotor.setControl(
-                new Follower(IntakeConstants.ROLLER_MOTOR_ID, MotorAlignmentValue.Opposed));
 
         var armConfig = new TalonFXConfiguration();
         armConfig.MotorOutput.NeutralMode = NeutralModeValue.Brake;
@@ -86,7 +81,6 @@ public class IntakeIOReal implements IntakeIO {
                 armAppliedVolts,
                 armCurrent);
         rollerMotor.optimizeBusUtilization();
-        leftRollerMotor.optimizeBusUtilization();
         armMotor.optimizeBusUtilization();
     }
 

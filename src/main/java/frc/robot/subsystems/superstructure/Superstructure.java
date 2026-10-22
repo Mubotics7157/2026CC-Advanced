@@ -31,6 +31,13 @@ public class Superstructure extends SubsystemBase {
     private double shootingHoodAngleRad = SuperstructureConstants.SHOOTER_HOOD_ANGLE_RAD;
     private boolean shotReadyToFeed = true;
 
+    // "Dumb mode": when active and SHOOTING, bypass tolerance/setpoint gating and feed
+    // immediately regardless of whether the hood, flywheels, and targeting solution have
+    // reached their setpoints.
+    // Toggled by the driver via the control board; persists across SHOOTING entries until
+    // toggled off.
+    private boolean dumbModeEnabled = false;
+
     public Superstructure(Intake intake, Indexer indexer, Shooter shooter) {
         this.intake = intake;
         this.indexer = indexer;
@@ -66,6 +73,7 @@ public class Superstructure extends SubsystemBase {
                 shooter.getRightVelocityRadPerSec());
         Logger.recordOutput("Superstructure/ShooterAtSetpoint", shooter.atSetpoint());
         Logger.recordOutput("Superstructure/FeedingLatched", feedingLatched);
+        Logger.recordOutput("Superstructure/DumbModeEnabled", dumbModeEnabled);
         Logger.recordOutput("Superstructure/ShootingVelocityRadPerSec", shootingVelocityRadPerSec);
         Logger.recordOutput("Superstructure/ShootingHoodAngleRad", shootingHoodAngleRad);
         Logger.recordOutput(
@@ -105,24 +113,37 @@ public class Superstructure extends SubsystemBase {
                 shooter.stop();
                 break;
             case SHOOTING:
-                // Keep the forebar active while feeding. There is intentionally no turret or
+                // Keep the forebar active while feeding.
                 // arm-retracted shooting interlock on this robot.
                 intake.deployArm();
                 intake.setRollerVelocity(
                         SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                 shooter.setHoodAngle(shootingHoodAngleRad);
                 shooter.setVelocity(shootingVelocityRadPerSec);
-                if (shooter.atSetpoint() && shotReadyToFeed) {
-                    if (shooterReadyTimestamp == 0.0) {
-                        shooterReadyTimestamp = Timer.getFPGATimestamp();
+
+                // Normal gating updates feedingLatched in the background so behavior reverts
+                // cleanly
+                // if dumb mode is toggled off mid-shot.
+                if (!feedingLatched) {
+                    if (shooter.atSetpoint() && shotReadyToFeed) {
+                        if (shooterReadyTimestamp == 0.0) {
+                            shooterReadyTimestamp = Timer.getFPGATimestamp();
+                        }
+                        if (Timer.getFPGATimestamp() - shooterReadyTimestamp
+                                >= SuperstructureConstants.SHOOTER_FEED_DELAY_SECONDS) {
+                            feedingLatched = true;
+                        }
+                    } else {
+                        shooterReadyTimestamp = 0.0;
                     }
-                    feedingLatched =
-                            Timer.getFPGATimestamp() - shooterReadyTimestamp
-                                    >= SuperstructureConstants.SHOOTER_FEED_DELAY_SECONDS;
-                } else {
-                    shooterReadyTimestamp = 0.0;
                 }
-                if (feedingLatched) {
+
+                // Dumb mode short-circuits the gate entirely: feeders run immediately on
+                // entry to SHOOTING regardless of tolerances or setpoints. The latch keeps
+                // updating in the background so behavior reverts cleanly if dumb mode is
+                // toggled off mid-shot.
+                boolean shouldFeed = feedingLatched || dumbModeEnabled;
+                if (shouldFeed) {
                     commandShootingAgitation();
                     indexer.setConveyorVelocity(
                             SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
@@ -175,6 +196,27 @@ public class Superstructure extends SubsystemBase {
         shotReadyToFeed = true;
     }
 
+    /**
+     * Driver "dumb mode" — when enabled, the SHOOTING state bypasses tolerance/setpoint gating and
+     * feeds balls immediately on entry, regardless of whether the hood, flywheels, and solution
+     * have reached their setpoints. Toggled by the driver via the control board.
+     *
+     * @return True if dumb mode is currently active.
+     */
+    public boolean isDumbModeEnabled() {
+        return dumbModeEnabled;
+    }
+
+    /** Set dumb mode explicitly. See {@link #isDumbModeEnabled()}. */
+    public void setDumbModeEnabled(boolean enabled) {
+        dumbModeEnabled = enabled;
+    }
+
+    /** Toggle dumb mode on/off. Intended for an .onTrue() driver button binding. */
+    public void toggleDumbMode() {
+        dumbModeEnabled = !dumbModeEnabled;
+    }
+
     public boolean atGoal() {
         if (currentGoal != desiredGoal) {
             return false;
@@ -188,7 +230,7 @@ public class Superstructure extends SubsystemBase {
             case OUTTAKING -> intake.isDeployed()
                     && indexer.isConveyorRunning()
                     && indexer.isFeederRunning();
-            case SHOOTING -> shooter.atSetpoint() && shotReadyToFeed && feedingLatched;
+            case SHOOTING -> feedingLatched || dumbModeEnabled;
             case IDLE -> intake.isStowed();
             case DEPLOYED_IDLE -> intake.isDeployed();
         };
