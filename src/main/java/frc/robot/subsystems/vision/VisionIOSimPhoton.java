@@ -25,9 +25,7 @@ import org.photonvision.targeting.PhotonPipelineResult;
  */
 public class VisionIOSimPhoton extends VisionIOHardwareLimelight {
     private final PhotonCamera camera = new PhotonCamera("camera");
-    private final PhotonCamera cameraB = new PhotonCamera("cameraB");
-    private PhotonCameraSim cameraSim;
-    private PhotonCameraSim cameraBSim;
+    private final PhotonCameraSim cameraSim;
     private final VisionSystemSim visionSim;
     private final SimulatedRobotState simRobotState;
 
@@ -40,7 +38,7 @@ public class VisionIOSimPhoton extends VisionIOHardwareLimelight {
         this.simRobotState = simRobotState;
 
         visionSim = new VisionSystemSim("main");
-        visionSim.addAprilTags(FieldConstants.kAprilTagLayoutReefsOnly);
+        visionSim.addAprilTags(FieldConstants.kAprilTagLayout);
 
         SimCameraProperties prop = new SimCameraProperties();
         prop.setCalibration(kResWidth, kResHeight, Rotation2d.fromDegrees(97.7));
@@ -52,42 +50,23 @@ public class VisionIOSimPhoton extends VisionIOHardwareLimelight {
 
         cameraSim = new PhotonCameraSim(camera, prop);
         cameraSim.setMinTargetAreaPixels(1000);
-        cameraBSim = new PhotonCameraSim(cameraB, prop);
-        cameraBSim.setMinTargetAreaPixels(1000);
 
-        Transform3d robotToCameraA =
+        Transform3d robotToCamera =
                 new Transform3d(
                         new Translation3d(
-                                VisionConstants.kRobotToCameraAForward,
-                                VisionConstants.kRobotToCameraASide,
-                                VisionConstants.kCameraAHeightOffGroundMeters),
+                                VisionConstants.kRobotToCameraForward,
+                                VisionConstants.kRobotToCameraSide,
+                                VisionConstants.kCameraHeightOffGroundMeters),
                         new Rotation3d(
                                 0.0, // Roll
-                                -VisionConstants.kCameraAPitchRads, // Pitch
-                                VisionConstants.kCameraAYawOffset.getRadians() // Yaw
+                                -VisionConstants.kCameraPitchRads, // Pitch
+                                VisionConstants.kCameraYawOffset.getRadians() // Yaw
                                 ));
-
-        Transform3d robotToCameraB =
-                new Transform3d(
-                        new Translation3d(
-                                VisionConstants.kRobotToCameraBForward,
-                                VisionConstants.kRobotToCameraBSide,
-                                VisionConstants.kCameraBHeightOffGroundMeters),
-                        new Rotation3d(
-                                0.0, // Roll
-                                -VisionConstants.kCameraBPitchRads, // Pitch
-                                VisionConstants.kCameraBYawOffset.getRadians() // Yaw
-                                ));
-
-        visionSim.addCamera(cameraSim, robotToCameraA);
-        visionSim.addCamera(cameraBSim, robotToCameraB);
+        visionSim.addCamera(cameraSim, robotToCamera);
 
         cameraSim.enableRawStream(true);
         cameraSim.enableProcessedStream(true);
         cameraSim.enableDrawWireframe(true);
-        cameraBSim.enableRawStream(true);
-        cameraBSim.enableProcessedStream(true);
-        cameraBSim.enableDrawWireframe(true);
     }
 
     @Override
@@ -99,12 +78,9 @@ public class VisionIOSimPhoton extends VisionIOHardwareLimelight {
         }
 
         NetworkTable table =
-                NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightATableName);
-        NetworkTable tableB =
-                NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightBTableName);
+                NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightTableName);
 
         writeToTable(camera.getAllUnreadResults(), table, cameraSim);
-        writeToTable(cameraB.getAllUnreadResults(), tableB, cameraBSim);
 
         super.updateInputs(inputs);
     }
@@ -177,7 +153,7 @@ public class VisionIOSimPhoton extends VisionIOHardwareLimelight {
             } else if (result.hasTargets()) {
                 var bestTarget = result.getBestTarget();
                 Transform3d best =
-                        FieldConstants.kAprilTagLayoutReefsOnly
+                        FieldConstants.kAprilTagLayout
                                 .getTagPose(bestTarget.getFiducialId())
                                 .get()
                                 .minus(Pose3d.kZero)

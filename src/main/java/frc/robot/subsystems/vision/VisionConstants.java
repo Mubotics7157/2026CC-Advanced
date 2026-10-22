@@ -14,31 +14,18 @@ public class VisionConstants {
 
     public static final int kExpectedStdDevArrayLength = 12;
 
-    // Camera A
-    public static final double kCameraAPitchDegrees = Units.radiansToDegrees(0.4);
-    public static final double kCameraAPitchRads = Units.degreesToRadians(kCameraAPitchDegrees);
-    public static final double kCameraAHeightOffGroundMeters = 0.2;
-    public static final String kLimelightATableName = "limelight-dihlite";
-    public static final double kRobotToCameraAForward = 0.2;
-    public static final double kRobotToCameraASide = 0.0;
-    public static final Rotation2d kCameraAYawOffset = Rotation2d.fromDegrees(0.0);
-    public static final Transform2d kRobotToCameraA =
+    // This robot has one Limelight. Keep its measured mounting values here so real and
+    // simulated vision share the identical robot-to-camera transform.
+    public static final double kCameraPitchDegrees = Units.radiansToDegrees(0.4);
+    public static final double kCameraPitchRads = Units.degreesToRadians(kCameraPitchDegrees);
+    public static final double kCameraHeightOffGroundMeters = 0.2;
+    public static final String kLimelightTableName = "limelight-dihlite";
+    public static final double kRobotToCameraForward = 0.2;
+    public static final double kRobotToCameraSide = 0.0;
+    public static final Rotation2d kCameraYawOffset = Rotation2d.fromDegrees(0.0);
+    public static final Transform2d kRobotToCamera =
             new Transform2d(
-                    new Translation2d(kRobotToCameraAForward, kRobotToCameraASide),
-                    kCameraAYawOffset);
-
-    // Camera B
-    public static final double kCameraBPitchDegrees = Units.radiansToDegrees(0.4);
-    public static final double kCameraBPitchRads = Units.degreesToRadians(kCameraBPitchDegrees);
-    public static final double kCameraBHeightOffGroundMeters = 0.2;
-    public static final String kLimelightBTableName = "limelight-dihcam";
-    public static final double kRobotToCameraBForward = -0.2;
-    public static final double kRobotToCameraBSide = 0.0;
-    public static final Rotation2d kCameraBYawOffset = Rotation2d.fromDegrees(180.0);
-    public static final Transform2d kRobotToCameraB =
-            new Transform2d(
-                    new Translation2d(kRobotToCameraBForward, kRobotToCameraBSide),
-                    kCameraBYawOffset);
+                    new Translation2d(kRobotToCameraForward, kRobotToCameraSide), kCameraYawOffset);
 
     // Vision processing thresholds
     public static final double kDefaultAmbiguityThreshold = 0.3;

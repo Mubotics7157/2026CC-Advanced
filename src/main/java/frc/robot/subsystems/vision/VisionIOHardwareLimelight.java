@@ -6,12 +6,10 @@ import frc.robot.RobotState;
 import frc.robot.lib.limelight.LimelightHelpers;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Hardware implementation of VisionIO using Limelight cameras. */
+/** Hardware implementation of VisionIO using the robot's single Limelight. */
 public class VisionIOHardwareLimelight implements VisionIO {
-    NetworkTable tableA =
-            NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightATableName);
-    NetworkTable tableB =
-            NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightBTableName);
+    private final NetworkTable table =
+            NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightTableName);
     RobotState robotState;
     AtomicReference<VisionIOInputs> latestInputs = new AtomicReference<>(new VisionIOInputs());
     int imuMode = 1;
@@ -27,33 +25,20 @@ public class VisionIOHardwareLimelight implements VisionIO {
 
     /** Configures Limelight camera poses in robot coordinate system. */
     private void setLLSettings() {
-        double[] cameraAPose = {
-            VisionConstants.kRobotToCameraAForward,
-            VisionConstants.kRobotToCameraASide,
-            VisionConstants.kCameraAHeightOffGroundMeters,
+        double[] cameraPose = {
+            VisionConstants.kRobotToCameraForward,
+            VisionConstants.kRobotToCameraSide,
+            VisionConstants.kCameraHeightOffGroundMeters,
             0.0,
-            VisionConstants.kCameraAPitchDegrees,
-            VisionConstants.kCameraAYawOffset.getDegrees()
+            VisionConstants.kCameraPitchDegrees,
+            VisionConstants.kCameraYawOffset.getDegrees()
         };
-
-        tableA.getEntry("camerapose_robotspace_set").setDoubleArray(cameraAPose);
-
-        double[] cameraBPose = {
-            VisionConstants.kRobotToCameraBForward,
-            VisionConstants.kRobotToCameraBSide,
-            VisionConstants.kCameraBHeightOffGroundMeters,
-            0.0,
-            VisionConstants.kCameraBPitchDegrees,
-            VisionConstants.kCameraBYawOffset.getDegrees()
-        };
-
-        tableB.getEntry("camerapose_robotspace_set").setDoubleArray(cameraBPose);
+        table.getEntry("camerapose_robotspace_set").setDoubleArray(cameraPose);
     }
 
     @Override
     public void updateInputs(VisionIOInputs inputs) {
-        readCameraData(tableA, inputs.cameraA, VisionConstants.kLimelightATableName);
-        readCameraData(tableB, inputs.cameraB, VisionConstants.kLimelightBTableName);
+        readCameraData(table, inputs.camera, VisionConstants.kLimelightTableName);
         latestInputs.set(inputs);
     }
 

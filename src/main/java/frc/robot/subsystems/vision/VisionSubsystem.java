@@ -20,8 +20,8 @@ import java.util.Optional;
 import org.littletonrobotics.junction.Logger;
 
 /**
- * Vision subsystem that processes AprilTag detections and provides robot pose estimates. Supports
- * multiple cameras and various pose estimation algorithms including MegaTag.
+ * Vision subsystem that processes AprilTag detections from the robot's single Limelight and
+ * provides filtered field-pose estimates.
  */
 public class VisionSubsystem extends SubsystemBase {
 
@@ -106,11 +106,8 @@ public class VisionSubsystem extends SubsystemBase {
         double startTime = RobotTime.getTimestampSeconds();
         io.updateInputs(inputs);
 
-        logCameraInputs("Vision/CameraA", inputs.cameraA);
-        logCameraInputs("Vision/CameraB", inputs.cameraB);
-
-        var maybeMTA = processCamera(inputs.cameraA, "CameraA", VisionConstants.kRobotToCameraA);
-        var maybeMTB = processCamera(inputs.cameraB, "CameraB", VisionConstants.kRobotToCameraB);
+        logCameraInputs("Vision/Camera", inputs.camera);
+        var estimate = processCamera(inputs.camera, "Camera", VisionConstants.kRobotToCamera);
 
         if (!useVision) {
             Logger.recordOutput("Vision/usingVision", false);
@@ -122,16 +119,9 @@ public class VisionSubsystem extends SubsystemBase {
 
         Logger.recordOutput("Vision/usingVision", true);
 
-        Optional<VisionFieldPoseEstimate> accepted = Optional.empty();
-        if (maybeMTA.isPresent() != maybeMTB.isPresent()) {
-            accepted = maybeMTA.isPresent() ? maybeMTA : maybeMTB;
-        } else if (maybeMTA.isPresent() && maybeMTB.isPresent()) {
-            accepted = Optional.of(fuseEstimates(maybeMTA.get(), maybeMTB.get()));
-        }
-
-        accepted.ifPresent(
+        estimate.ifPresent(
                 est -> {
-                    Logger.recordOutput("Vision/fusedAccepted", est.getVisionRobotPoseMeters());
+                    Logger.recordOutput("Vision/Accepted", est.getVisionRobotPoseMeters());
                     state.updateMegatagEstimate(est);
                 });
 
@@ -245,7 +235,7 @@ public class VisionSubsystem extends SubsystemBase {
         }
 
         var maybeFieldToTag =
-                FieldConstants.kAprilTagLayoutReefsOnly.getTagPose(poseEstimate.fiducialIds()[0]);
+                FieldConstants.kAprilTagLayout.getTagPose(poseEstimate.fiducialIds()[0]);
         if (maybeFieldToTag.isEmpty()) {
             return Optional.empty();
         }

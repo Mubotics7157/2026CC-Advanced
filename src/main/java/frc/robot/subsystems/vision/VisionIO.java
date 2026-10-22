@@ -21,8 +21,7 @@ public interface VisionIO {
             // MT2y, MT2z, MT2roll, MT2pitch, MT2yaw]
         }
 
-        public CameraInputs cameraA = new CameraInputs();
-        public CameraInputs cameraB = new CameraInputs();
+        public CameraInputs camera = new CameraInputs();
     }
 
     void updateInputs(VisionIOInputs inputs);
