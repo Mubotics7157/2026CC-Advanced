@@ -147,6 +147,14 @@ public class RobotContainer {
                                 superstructure,
                                 controlBoard::getThrottle,
                                 controlBoard::getStrafe));
+
+        // POV Right: toggle "dumb mode" — while active, SHOOTING bypasses hood and flywheel
+        // setpoint checks and feeds immediately once the robot has moved into position.
+        controlBoard
+                .getWantToggleDumbMode()
+                .onTrue(
+                        Commands.runOnce(superstructure::toggleDumbMode)
+                                .withName("Toggle Dumb Mode"));
     }
 
     public void resetHeading() {

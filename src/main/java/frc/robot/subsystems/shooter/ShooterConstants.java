@@ -21,7 +21,8 @@ public final class ShooterConstants {
     public static final double SHOOTER_STATOR_CURRENT_LIMIT = 120.0;
 
     public static final double VELOCITY_TOLERANCE_RAD_PER_SEC =
-            Units.rotationsPerMinuteToRadiansPerSecond(100.0);
+            Units.rotationsPerMinuteToRadiansPerSecond(
+                    10000.0); // TODO: Update this value after mechanism tuning.
     public static final double HOOD_MIN_ANGLE_RAD = Units.degreesToRadians(20.0);
     public static final double HOOD_MAX_ANGLE_RAD = Units.degreesToRadians(65.0);
 

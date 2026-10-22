@@ -18,4 +18,6 @@ public interface IDriveControlBoard {
     Trigger getWantOuttake();
 
     Trigger getWantShoot();
+
+    Trigger getWantToggleDumbMode();
 }
