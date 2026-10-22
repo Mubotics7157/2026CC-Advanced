@@ -5,7 +5,7 @@
 package frc.robot;
 
 import com.ctre.phoenix6.SignalLogger;
-import com.pathplanner.lib.commands.PathfindingCommand;
+import com.team254.lib.pathplanner.commands.PathfindingCommand;
 import com.team254.lib.pathplanner.pathfinding.Pathfinding;
 import com.team254.lib.pathplanner.trajectory.PathPlannerTrajectory;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -142,6 +142,11 @@ public class Robot extends LoggedRobot {
     public void autonomousInit() {
         disabledCommand.cancel();
 
+        // The custom Local AD* planner uses a different obstacle model in autonomous than in
+        // teleop. Select it before any adaptive or PathPlanner pathfinding command starts.
+        Pathfinding.ensureInitialized();
+        Pathfinding.setAutoObstacles();
+
         robotContainer.getRobotState().setAutoStartTime(Timer.getFPGATimestamp());
 
         Optional<Pose2d> startingPose =
@@ -161,6 +166,8 @@ public class Robot extends LoggedRobot {
     public void teleopInit() {
         disabledCommand.cancel();
         autonomousCommand.cancel();
+        Pathfinding.ensureInitialized();
+        Pathfinding.setTeleopObstacles();
         // Revert any forced dumb mode so teleop starts with normal tolerance gating.
         robotContainer.getSuperstructure().setDumbModeEnabled(false);
     }

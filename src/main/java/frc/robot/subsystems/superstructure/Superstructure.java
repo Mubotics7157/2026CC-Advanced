@@ -6,7 +6,9 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.subsystems.indexer.Indexer;
 import frc.robot.subsystems.intake.Intake;
+import frc.robot.subsystems.intake.IntakeConstants;
 import frc.robot.subsystems.shooter.Shooter;
+import frc.robot.subsystems.shooter.ShooterConstants;
 import org.littletonrobotics.junction.Logger;
 
 public class Superstructure extends SubsystemBase {
@@ -113,9 +115,9 @@ public class Superstructure extends SubsystemBase {
                 shooter.stop();
                 break;
             case SHOOTING:
-                // Keep the forebar active while feeding.
-                // arm-retracted shooting interlock on this robot.
-                intake.deployArm();
+                // The forebar is used as a controlled agitator throughout a shot. It always
+                // returns to the deployed position when this goal ends.
+                commandShootingAgitation();
                 intake.setRollerVelocity(
                         SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                 shooter.setHoodAngle(shootingHoodAngleRad);
@@ -144,7 +146,6 @@ public class Superstructure extends SubsystemBase {
                 // toggled off mid-shot.
                 boolean shouldFeed = feedingLatched || dumbModeEnabled;
                 if (shouldFeed) {
-                    commandShootingAgitation();
                     indexer.setConveyorVelocity(
                             SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
                     indexer.setFeederVelocity(SuperstructureConstants.FEEDER_VELOCITY_RAD_PER_SEC);
@@ -155,13 +156,13 @@ public class Superstructure extends SubsystemBase {
             case IDLE:
                 intake.stopRoller();
                 intake.stowArm();
-                shooter.stop();
+                commandShooterStowed();
                 indexer.stop();
                 break;
             case DEPLOYED_IDLE:
                 intake.stopRoller();
                 intake.deployArm();
-                shooter.stop();
+                commandShooterStowed();
                 indexer.stop();
                 break;
         }
@@ -244,7 +245,7 @@ public class Superstructure extends SubsystemBase {
         intake.stowArm();
         intake.setRollerVelocity(0.0);
         indexer.stop();
-        shooter.stop();
+        commandShooterStowed();
     }
 
     private void commandShootingAgitation() {
@@ -253,9 +254,15 @@ public class Superstructure extends SubsystemBase {
                                 % SuperstructureConstants.SHOOTING_AGITATION_PERIOD_SECONDS)
                         / SuperstructureConstants.SHOOTING_AGITATION_PERIOD_SECONDS;
         if (phase < 0.5) {
-            intake.agitateArm();
+            intake.setArmPosition(IntakeConstants.ARM_AGITATE_POSITION_RAD);
         } else {
-            intake.deployArm();
+            intake.setArmPosition(IntakeConstants.ARM_DEPLOYED_POSITION_RAD);
         }
+    }
+
+    /** Stops the flywheels and positively parks the hood at its safe, lowest angle. */
+    private void commandShooterStowed() {
+        shooter.stop();
+        shooter.setHoodAngle(ShooterConstants.HOOD_MIN_ANGLE_RAD);
     }
 }

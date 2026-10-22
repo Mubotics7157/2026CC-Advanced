@@ -45,14 +45,14 @@ public final class IntakeFactory {
     }
 
     /**
-     * Runs the complete shoot sequence while held. Releasing it returns the forebar to its safe
-     * stowed idle state.
+     * Runs the complete shoot sequence while held. Releasing it leaves the forebar deployed and
+     * stops all rollers, ready for the next intake cycle.
      */
     public static Command setShootingCommand(Superstructure superstructure) {
         return superstructure
                 .startEnd(
                         () -> superstructure.setGoal(Goal.SHOOTING),
-                        () -> superstructure.setGoal(Goal.IDLE))
+                        () -> superstructure.setGoal(Goal.DEPLOYED_IDLE))
                 .withName("setShootingCommand");
     }
 

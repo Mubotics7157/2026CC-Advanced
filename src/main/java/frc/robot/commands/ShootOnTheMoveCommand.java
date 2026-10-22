@@ -73,6 +73,8 @@ public class ShootOnTheMoveCommand extends Command {
     @Override
     public void end(boolean interrupted) {
         superstructure.clearShootingRequest();
-        superstructure.setGoal(Goal.IDLE);
+        // Preserve the intake's deployed post-shot state; the superstructure still parks the
+        // hood and stops every roller as soon as SHOOTING exits.
+        superstructure.setGoal(Goal.DEPLOYED_IDLE);
     }
 }
