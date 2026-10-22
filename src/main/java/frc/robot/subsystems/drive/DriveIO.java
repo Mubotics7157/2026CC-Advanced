@@ -43,4 +43,7 @@ public interface DriveIO {
     void addVisionMeasurement(VisionFieldPoseEstimate visionFieldPoseEstimate);
 
     void setStateStdDevs(double xStd, double yStd, double rotStd);
+
+    /** Apply open-loop voltage to the drivetrain's SysId translation request. */
+    default void runCharacterization(double volts) {}
 }

@@ -25,6 +25,7 @@ import edu.wpi.first.wpilibj.Threads;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants;
 import frc.robot.RobotState;
 import frc.robot.lib.time.RobotTime;
@@ -48,6 +49,8 @@ public class DriveSubsystem extends SubsystemBase {
 
     private final RobotState robotState;
 
+    private final SysIdRoutine sysId;
+
     private Controller controller;
 
     private final ApplyRobotSpeeds stopRequest =
@@ -63,6 +66,20 @@ public class DriveSubsystem extends SubsystemBase {
         this.robotState = robotState;
 
         configurePathPlanner();
+
+        sysId =
+                new SysIdRoutine(
+                        new SysIdRoutine.Config(
+                                null,
+                                null,
+                                null,
+                                state -> Logger.recordOutput("Drive/SysIdState", state.toString())),
+                        new SysIdRoutine.Mechanism(
+                                voltage ->
+                                        io.runCharacterization(
+                                                voltage.in(edu.wpi.first.units.Units.Volts)),
+                                null,
+                                this));
     }
 
     private ChassisSpeeds applyDeadband(ChassisSpeeds input) {
@@ -256,6 +273,20 @@ public class DriveSubsystem extends SubsystemBase {
     // API
     public Command applyRequest(Supplier<SwerveRequest> requestSupplier) {
         return io.applyRequest(requestSupplier, this).withName("Swerve drive request");
+    }
+
+    /** Returns a command to run a quasistatic SysId test in the requested direction. */
+    public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
+        return run(() -> io.runCharacterization(0.0))
+                .withTimeout(1.0)
+                .andThen(sysId.quasistatic(direction));
+    }
+
+    /** Returns a command to run a dynamic SysId test in the requested direction. */
+    public Command sysIdDynamic(SysIdRoutine.Direction direction) {
+        return run(() -> io.runCharacterization(0.0))
+                .withTimeout(1.0)
+                .andThen(sysId.dynamic(direction));
     }
 
     public void addVisionMeasurement(VisionFieldPoseEstimate visionFieldPoseEstimate) {

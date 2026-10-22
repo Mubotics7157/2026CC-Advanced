@@ -40,6 +40,9 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
 
     private final AtomicReference<SwerveDriveState> telemetryCache = new AtomicReference<>();
 
+    private final SwerveRequest.SysIdSwerveTranslation sysIdTranslationRequest =
+            new SwerveRequest.SysIdSwerveTranslation();
+
     private final StatusSignal<AngularVelocity> angularPitchVelocity;
     private final StatusSignal<AngularVelocity> angularRollVelocity;
     private final StatusSignal<AngularVelocity> angularYawVelocity;
@@ -118,6 +121,11 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
 
     public void setControl(SwerveRequest request) {
         super.setControl(request);
+    }
+
+    @Override
+    public void runCharacterization(double volts) {
+        setControl(sysIdTranslationRequest.withVolts(edu.wpi.first.units.Units.Volts.of(volts)));
     }
 
     @Override

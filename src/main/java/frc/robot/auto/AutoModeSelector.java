@@ -6,6 +6,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.RobotContainer;
 import frc.robot.factories.AutoFactory;
 import frc.robot.lib.rebuilt.FieldLocation;
@@ -18,6 +19,10 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 public class AutoModeSelector {
     public enum DesiredMode {
         DO_NOTHING,
+        SYSID_QUASISTATIC_FORWARD,
+        SYSID_QUASISTATIC_REVERSE,
+        SYSID_DYNAMIC_FORWARD,
+        SYSID_DYNAMIC_REVERSE,
         PATHPLANNER_AUTO,
         CHOREO_PATH,
         ADAPTIVE_ROUTE,
@@ -51,6 +56,12 @@ public class AutoModeSelector {
     public AutoModeSelector(RobotContainer container) {
         this.container = container;
         modeChooser.addDefaultOption("Do Nothing", DesiredMode.DO_NOTHING);
+        modeChooser.addOption(
+                "Drive SysId (Quasistatic Forward)", DesiredMode.SYSID_QUASISTATIC_FORWARD);
+        modeChooser.addOption(
+                "Drive SysId (Quasistatic Reverse)", DesiredMode.SYSID_QUASISTATIC_REVERSE);
+        modeChooser.addOption("Drive SysId (Dynamic Forward)", DesiredMode.SYSID_DYNAMIC_FORWARD);
+        modeChooser.addOption("Drive SysId (Dynamic Reverse)", DesiredMode.SYSID_DYNAMIC_REVERSE);
         modeChooser.addOption("PathPlanner File Auto", DesiredMode.PATHPLANNER_AUTO);
         modeChooser.addOption("Choreo Trajectory", DesiredMode.CHOREO_PATH);
         modeChooser.addOption("Adaptive Route", DesiredMode.ADAPTIVE_ROUTE);
@@ -85,6 +96,16 @@ public class AutoModeSelector {
         Logger.recordOutput("Auto/SelectedMode", mode.name());
         return switch (mode) {
             case DO_NOTHING -> Commands.none();
+            case SYSID_QUASISTATIC_FORWARD -> drive.sysIdQuasistatic(
+                            SysIdRoutine.Direction.kForward)
+                    .withName("Drive SysId Quasistatic Forward");
+            case SYSID_QUASISTATIC_REVERSE -> drive.sysIdQuasistatic(
+                            SysIdRoutine.Direction.kReverse)
+                    .withName("Drive SysId Quasistatic Reverse");
+            case SYSID_DYNAMIC_FORWARD -> drive.sysIdDynamic(SysIdRoutine.Direction.kForward)
+                    .withName("Drive SysId Dynamic Forward");
+            case SYSID_DYNAMIC_REVERSE -> drive.sysIdDynamic(SysIdRoutine.Direction.kReverse)
+                    .withName("Drive SysId Dynamic Reverse");
             case PATHPLANNER_AUTO -> loadPathPlannerAuto(pathPlannerChooser.get());
             case CHOREO_PATH -> AutoUtil.followChoreoPath(
                     drive, state, Optional.ofNullable(choreoChooser.get()).orElse(""), red);
