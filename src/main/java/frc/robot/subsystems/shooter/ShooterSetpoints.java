@@ -72,6 +72,8 @@ public final class ShooterSetpoints {
 
     public static final LoggedTunableNumber SHOOTER_RPM_OFFSET =
             new LoggedTunableNumber("Shooter/ShotMap/RpmOffset", 0.0);
+    public static final LoggedTunableNumber USE_TUNING_RPM =
+            new LoggedTunableNumber("Shooter/Tuning/UseTargetRPM", 0.0);
     public static final LoggedTunableNumber HOOD_ANGLE_OFFSET_DEG =
             new LoggedTunableNumber("Shooter/ShotMap/HoodAngleOffsetDeg", 0.0);
 
@@ -85,7 +87,10 @@ public final class ShooterSetpoints {
     }
 
     public static double getVelocityRadPerSec(double distanceMeters) {
-        double rpm = SHOOTER_VELOCITY_RPM_MAP.get(distanceMeters) + SHOOTER_RPM_OFFSET.get();
+        double rpm =
+                USE_TUNING_RPM.get() > 0.5
+                        ? ShooterConstants.TUNING_VELOCITY_RPM.get()
+                        : SHOOTER_VELOCITY_RPM_MAP.get(distanceMeters) + SHOOTER_RPM_OFFSET.get();
         Logger.recordOutput("Shooter/ShotMap/InterpolatedRPM", rpm);
         return Units.rotationsPerMinuteToRadiansPerSecond(rpm);
     }

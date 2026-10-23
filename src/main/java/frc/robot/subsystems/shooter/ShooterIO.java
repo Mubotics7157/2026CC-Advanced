@@ -16,6 +16,9 @@ public interface ShooterIO {
         public double leftCurrent = 0.0;
         public double middleCurrent = 0.0;
         public double rightCurrent = 0.0;
+        public boolean leftMotorConnected = true;
+        public boolean middleMotorConnected = true;
+        public boolean rightMotorConnected = true;
 
         public double velocitySetpoint = 0.0;
         public double requestedVelocity = 0.0;
@@ -37,6 +40,8 @@ public interface ShooterIO {
     default void runVelocityDutyCycleBangBang(double velocityRadPerSec) {}
 
     default void runTorqueCurrent(double torqueCurrentAmps) {}
+
+    default void runVoltage(double volts) {}
 
     default void setHoodServoPosition(double position) {}
 

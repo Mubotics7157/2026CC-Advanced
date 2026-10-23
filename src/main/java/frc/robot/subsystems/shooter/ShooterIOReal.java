@@ -8,6 +8,7 @@ import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.TorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VelocityDutyCycle;
 import com.ctre.phoenix6.controls.VelocityTorqueCurrentFOC;
+import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -27,6 +28,7 @@ public class ShooterIOReal implements ShooterIO {
     private final VelocityTorqueCurrentFOC velocityRequest = new VelocityTorqueCurrentFOC(0.0);
     private final VelocityDutyCycle bangBangRequest = new VelocityDutyCycle(0.0).withSlot(1);
     private final TorqueCurrentFOC torqueCurrentRequest = new TorqueCurrentFOC(0.0);
+    private final VoltageOut voltageRequest = new VoltageOut(0.0);
 
     private final StatusSignal<AngularVelocity> leftVelocity;
     private final StatusSignal<AngularVelocity> middleVelocity;
@@ -52,9 +54,16 @@ public class ShooterIOReal implements ShooterIO {
         middleMotor = new TalonFX(ShooterConstants.MIDDLE_MOTOR_ID, ShooterConstants.CAN_BUS);
         rightMotor = new TalonFX(ShooterConstants.RIGHT_MOTOR_ID, ShooterConstants.CAN_BUS);
 
-        configureMotor(leftMotor, InvertedValue.CounterClockwise_Positive);
-        configureMotor(middleMotor, InvertedValue.CounterClockwise_Positive);
-        configureMotor(rightMotor, InvertedValue.Clockwise_Positive);
+        configureMotor(
+                leftMotor,
+                InvertedValue.CounterClockwise_Positive,
+                ShooterConstants.Flywheel.LEFT);
+        configureMotor(
+                middleMotor,
+                InvertedValue.CounterClockwise_Positive,
+                ShooterConstants.Flywheel.MIDDLE);
+        configureMotor(
+                rightMotor, InvertedValue.Clockwise_Positive, ShooterConstants.Flywheel.RIGHT);
 
         leftVelocity = leftMotor.getVelocity();
         middleVelocity = middleMotor.getVelocity();
@@ -114,6 +123,9 @@ public class ShooterIOReal implements ShooterIO {
         inputs.leftCurrent = leftCurrent.getValueAsDouble();
         inputs.middleCurrent = middleCurrent.getValueAsDouble();
         inputs.rightCurrent = rightCurrent.getValueAsDouble();
+        inputs.leftMotorConnected = leftVelocity.getStatus().isOK();
+        inputs.middleMotorConnected = middleVelocity.getStatus().isOK();
+        inputs.rightMotorConnected = rightVelocity.getStatus().isOK();
 
         inputs.velocitySetpoint = velocitySetpoint;
         inputs.requestedVelocity = velocitySetpoint;
@@ -150,10 +162,21 @@ public class ShooterIOReal implements ShooterIO {
 
     @Override
     public void runTorqueCurrent(double torqueCurrentAmps) {
-        double output = MathUtil.clamp(torqueCurrentAmps, 0.0, ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS);
+        double output =
+                MathUtil.clamp(
+                        torqueCurrentAmps,
+                        0.0,
+                        ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS.get());
         leftMotor.setControl(torqueCurrentRequest.withOutput(output));
         middleMotor.setControl(torqueCurrentRequest.withOutput(output));
         rightMotor.setControl(torqueCurrentRequest.withOutput(output));
+    }
+
+    @Override
+    public void runVoltage(double volts) {
+        leftMotor.setControl(voltageRequest.withOutput(volts));
+        middleMotor.setControl(voltageRequest.withOutput(volts));
+        rightMotor.setControl(voltageRequest.withOutput(volts));
     }
 
     @Override
@@ -182,43 +205,61 @@ public class ShooterIOReal implements ShooterIO {
 
     @Override
     public void updateShooterConfig() {
-        var slot0 = new Slot0Configs();
-        applyShooterGains(slot0);
-        leftMotor.getConfigurator().apply(slot0);
-        middleMotor.getConfigurator().apply(slot0);
-        rightMotor.getConfigurator().apply(slot0);
-
-        var slot1 = new Slot1Configs();
-        slot1.kP = ShooterConstants.BANG_BANG_KP.get();
-        leftMotor.getConfigurator().apply(slot1);
-        middleMotor.getConfigurator().apply(slot1);
-        rightMotor.getConfigurator().apply(slot1);
+        updateMotorConfig(leftMotor, ShooterConstants.Flywheel.LEFT);
+        updateMotorConfig(middleMotor, ShooterConstants.Flywheel.MIDDLE);
+        updateMotorConfig(rightMotor, ShooterConstants.Flywheel.RIGHT);
     }
 
-    private static void configureMotor(TalonFX motor, InvertedValue inverted) {
+    private static void configureMotor(
+            TalonFX motor, InvertedValue inverted, ShooterConstants.Flywheel flywheel) {
         var config = new TalonFXConfiguration();
         config.MotorOutput.NeutralMode = NeutralModeValue.Coast;
         config.MotorOutput.Inverted = inverted;
         config.MotorOutput.PeakForwardDutyCycle = 1.0;
         config.MotorOutput.PeakReverseDutyCycle = 0.0;
-        config.CurrentLimits.StatorCurrentLimit = ShooterConstants.SHOOTER_STATOR_CURRENT_LIMIT;
+        config.CurrentLimits.StatorCurrentLimit =
+                ShooterConstants.SHOOTER_STATOR_CURRENT_LIMIT_AMPS.get();
         config.CurrentLimits.StatorCurrentLimitEnable = true;
         config.Feedback.SensorToMechanismRatio = ShooterConstants.SHOOTER_GEAR_RATIO;
-        applyShooterGains(config.Slot0);
+        applyShooterGains(config.Slot0, flywheel);
         config.Slot1.kP = ShooterConstants.BANG_BANG_KP.get();
         config.TorqueCurrent.PeakForwardTorqueCurrent =
-                ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS;
+                ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS.get();
         config.TorqueCurrent.PeakReverseTorqueCurrent = 0.0;
         motor.getConfigurator().apply(config);
     }
 
-    private static void applyShooterGains(Slot0Configs slot0) {
-        slot0.kS = ShooterConstants.SHOOTER_KS.get();
-        slot0.kV = ShooterConstants.SHOOTER_KV.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
-        slot0.kA = ShooterConstants.SHOOTER_KA.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
-        slot0.kP = ShooterConstants.SHOOTER_KP.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
-        slot0.kI = ShooterConstants.SHOOTER_KI.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
-        slot0.kD = ShooterConstants.SHOOTER_KD.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
+    private static void updateMotorConfig(
+            TalonFX motor, ShooterConstants.Flywheel flywheel) {
+        var slot0 = new Slot0Configs();
+        applyShooterGains(slot0, flywheel);
+        motor.getConfigurator().apply(slot0);
+
+        var slot1 = new Slot1Configs();
+        slot1.kP = ShooterConstants.BANG_BANG_KP.get();
+        motor.getConfigurator().apply(slot1);
+
+        var currentLimits = new com.ctre.phoenix6.configs.CurrentLimitsConfigs();
+        currentLimits.StatorCurrentLimit =
+                ShooterConstants.SHOOTER_STATOR_CURRENT_LIMIT_AMPS.get();
+        currentLimits.StatorCurrentLimitEnable = true;
+        motor.getConfigurator().apply(currentLimits);
+
+        var torqueCurrent = new com.ctre.phoenix6.configs.TorqueCurrentConfigs();
+        torqueCurrent.PeakForwardTorqueCurrent =
+                ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS.get();
+        torqueCurrent.PeakReverseTorqueCurrent = 0.0;
+        motor.getConfigurator().apply(torqueCurrent);
+    }
+
+    private static void applyShooterGains(
+            Slot0Configs slot0, ShooterConstants.Flywheel flywheel) {
+        slot0.kS = flywheel.kS.get();
+        slot0.kV = flywheel.kV.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
+        slot0.kA = flywheel.kA.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
+        slot0.kP = flywheel.kP.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
+        slot0.kI = flywheel.kI.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
+        slot0.kD = flywheel.kD.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
     }
 
     private static Optional<Servo> createHoodServo(int pwmChannel) {

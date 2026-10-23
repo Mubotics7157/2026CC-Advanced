@@ -67,9 +67,12 @@ public class ShooterIOSim implements ShooterIO {
     @Override
     public void runVelocityDutyCycleBangBang(double velocityRadPerSec) {
         velocitySetpoint = velocityRadPerSec;
-        leftAppliedVolts = bangBangVoltage(leftSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
-        middleAppliedVolts = bangBangVoltage(middleSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
-        rightAppliedVolts = bangBangVoltage(rightSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
+        leftAppliedVolts =
+                bangBangVoltage(leftSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
+        middleAppliedVolts =
+                bangBangVoltage(middleSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
+        rightAppliedVolts =
+                bangBangVoltage(rightSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
         leftSim.setInputVoltage(leftAppliedVolts);
         middleSim.setInputVoltage(middleAppliedVolts);
         rightSim.setInputVoltage(rightAppliedVolts);
@@ -79,7 +82,8 @@ public class ShooterIOSim implements ShooterIO {
     public void runTorqueCurrent(double torqueCurrentAmps) {
         double voltage =
                 MathUtil.clamp(
-                        torqueCurrentAmps / ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS
+                        torqueCurrentAmps
+                                / ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS.get()
                                 * MAX_VOLTAGE,
                         0.0,
                         MAX_VOLTAGE);
@@ -89,6 +93,17 @@ public class ShooterIOSim implements ShooterIO {
         leftSim.setInputVoltage(voltage);
         middleSim.setInputVoltage(voltage);
         rightSim.setInputVoltage(voltage);
+    }
+
+    @Override
+    public void runVoltage(double volts) {
+        double clampedVolts = MathUtil.clamp(volts, -MAX_VOLTAGE, MAX_VOLTAGE);
+        leftAppliedVolts = clampedVolts;
+        middleAppliedVolts = clampedVolts;
+        rightAppliedVolts = clampedVolts;
+        leftSim.setInputVoltage(clampedVolts);
+        middleSim.setInputVoltage(clampedVolts);
+        rightSim.setInputVoltage(clampedVolts);
     }
 
     @Override

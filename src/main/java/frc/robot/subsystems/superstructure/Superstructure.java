@@ -39,6 +39,7 @@ public class Superstructure extends SubsystemBase {
     // Toggled by the driver via the control board; persists across SHOOTING entries until
     // toggled off.
     private boolean dumbModeEnabled = false;
+    private boolean shooterTuningOverride = false;
 
     public Superstructure(Intake intake, Indexer indexer, Shooter shooter) {
         this.intake = intake;
@@ -81,6 +82,13 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput(
                 "Superstructure/ShootingHoodAngleDeg", Math.toDegrees(shootingHoodAngleRad));
         Logger.recordOutput("Superstructure/ShotReadyToFeed", shotReadyToFeed);
+        Logger.recordOutput("Superstructure/ShooterTuningOverride", shooterTuningOverride);
+
+        if (shooterTuningOverride) {
+            intake.stopRoller();
+            indexer.stop();
+            return;
+        }
 
         if (currentGoal != desiredGoal
                 && (currentGoal == Goal.SHOOTING || desiredGoal == Goal.SHOOTING)) {
@@ -196,6 +204,15 @@ public class Superstructure extends SubsystemBase {
         shootingVelocityRadPerSec = SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC;
         shootingHoodAngleRad = SuperstructureConstants.SHOOTER_HOOD_ANGLE_RAD;
         shotReadyToFeed = true;
+    }
+
+    /** Temporarily gives a tuning command exclusive control of the shooter; feeding stays stopped. */
+    public void setShooterTuningOverride(boolean enabled) {
+        shooterTuningOverride = enabled;
+        if (enabled) {
+            feedingLatched = false;
+            shooterReadyTimestamp = 0.0;
+        }
     }
 
     /**

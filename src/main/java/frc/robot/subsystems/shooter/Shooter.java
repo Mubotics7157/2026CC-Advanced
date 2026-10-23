@@ -1,6 +1,7 @@
 package frc.robot.subsystems.shooter;
 
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import org.littletonrobotics.junction.Logger;
 
@@ -11,7 +12,8 @@ public class Shooter extends SubsystemBase {
         STARTUP,
         IDLE,
         BALL,
-        RECOVERY
+        RECOVERY,
+        MANUAL_VOLTAGE
     }
 
     private final ShooterIO io;
@@ -20,6 +22,7 @@ public class Shooter extends SubsystemBase {
     private double requestedVelocityRadPerSec = 0.0;
     private boolean enabled = false;
     private boolean launchActive = false;
+    private boolean manualVoltageOverride = false;
     private boolean previousLaunchActive = false;
     private double previousVelocityRadPerSec = 0.0;
     private double phaseStartTimestampSec = 0.0;
@@ -35,6 +38,15 @@ public class Shooter extends SubsystemBase {
 
         if (ShooterConstants.hasAnyShooterPIDChanged()) {
             io.updateShooterConfig();
+        }
+
+        if (manualVoltageOverride) {
+            inputs.requestedVelocity = 0.0;
+            inputs.velocitySetpoint = 0.0;
+            inputs.controlPhase = phase.name();
+            Logger.processInputs("Shooter", inputs);
+            logTelemetry();
+            return;
         }
 
         if (!enabled || requestedVelocityRadPerSec <= 1e-3) {
@@ -107,6 +119,10 @@ public class Shooter extends SubsystemBase {
         return rpm * 2.0 * Math.PI / 60.0;
     }
 
+    private double velocityToleranceRadPerSec() {
+        return rpmToRadPerSec(Math.max(0.0, ShooterConstants.VELOCITY_TOLERANCE_RPM.get()));
+    }
+
     private double averageFlywheelVelocity() {
         return (inputs.leftVelocity + inputs.middleVelocity + inputs.rightVelocity) / 3.0;
     }
@@ -118,6 +134,27 @@ public class Shooter extends SubsystemBase {
         Logger.recordOutput("Shooter/VelocitySetpointRadPerSec", requestedVelocityRadPerSec);
         Logger.recordOutput("Shooter/ControlPhase", phase.name());
         Logger.recordOutput("Shooter/LaunchActive", launchActive);
+        Logger.recordOutput("Shooter/LeftVoltage", inputs.leftVoltage);
+        Logger.recordOutput("Shooter/MiddleVoltage", inputs.middleVoltage);
+        Logger.recordOutput("Shooter/RightVoltage", inputs.rightVoltage);
+        Logger.recordOutput("Shooter/LeftCurrentAmps", inputs.leftCurrent);
+        Logger.recordOutput("Shooter/MiddleCurrentAmps", inputs.middleCurrent);
+        Logger.recordOutput("Shooter/RightCurrentAmps", inputs.rightCurrent);
+        Logger.recordOutput("Shooter/LeftMotorConnected", inputs.leftMotorConnected);
+        Logger.recordOutput("Shooter/MiddleMotorConnected", inputs.middleMotorConnected);
+        Logger.recordOutput("Shooter/RightMotorConnected", inputs.rightMotorConnected);
+        Logger.recordOutput(
+                "Shooter/LeftErrorRPM",
+                Units.radiansPerSecondToRotationsPerMinute(
+                        requestedVelocityRadPerSec - inputs.leftVelocity));
+        Logger.recordOutput(
+                "Shooter/MiddleErrorRPM",
+                Units.radiansPerSecondToRotationsPerMinute(
+                        requestedVelocityRadPerSec - inputs.middleVelocity));
+        Logger.recordOutput(
+                "Shooter/RightErrorRPM",
+                Units.radiansPerSecondToRotationsPerMinute(
+                        requestedVelocityRadPerSec - inputs.rightVelocity));
         Logger.recordOutput("Shooter/Hood/LeftServoPosition", inputs.leftHoodServoPosition);
         Logger.recordOutput("Shooter/Hood/RightServoPosition", inputs.rightHoodServoPosition);
         Logger.recordOutput("Shooter/Hood/ServoSetpoint", inputs.hoodServoSetpoint);
@@ -136,13 +173,24 @@ public class Shooter extends SubsystemBase {
     }
 
     public void setVelocity(double velocityRadPerSec) {
+        if (manualVoltageOverride) {
+            manualVoltageOverride = false;
+            phase = ControlPhase.DISABLED;
+        }
         requestedVelocityRadPerSec =
                 Math.max(
                         0.0,
                         Math.min(
                                 velocityRadPerSec,
-                                ShooterConstants.SHOOTER_MAX_VELOCITY_RAD_PER_SEC));
+                                rpmToRadPerSec(
+                                        Math.min(
+                                                6000.0,
+                                                Math.max(
+                                                        0.0,
+                                                        ShooterConstants.MAX_VELOCITY_RPM
+                                                                .get())))));
         enabled = requestedVelocityRadPerSec > 1e-3;
+        manualVoltageOverride = false;
         if (!enabled) {
             stop();
         }
@@ -156,9 +204,21 @@ public class Shooter extends SubsystemBase {
         launchActive = active;
     }
 
+    /** Applies open-loop voltage to all three flywheels until a velocity request or stop occurs. */
+    public void runVoltage(double volts) {
+        double maxVolts = Math.min(6.0, Math.max(0.0, ShooterConstants.CHARACTERIZATION_MAX_VOLTS.get()));
+        double clampedVolts = Math.max(-maxVolts, Math.min(maxVolts, volts));
+        enabled = false;
+        requestedVelocityRadPerSec = 0.0;
+        manualVoltageOverride = true;
+        phase = ControlPhase.MANUAL_VOLTAGE;
+        io.runVoltage(clampedVolts);
+    }
+
     public void stop() {
         enabled = false;
         requestedVelocityRadPerSec = 0.0;
+        manualVoltageOverride = false;
         launchActive = false;
         phase = ControlPhase.DISABLED;
         io.stop();
@@ -177,8 +237,37 @@ public class Shooter extends SubsystemBase {
         return inputs.rightVelocity;
     }
 
+    public double getLeftVelocityRPM() {
+        return Units.radiansPerSecondToRotationsPerMinute(inputs.leftVelocity);
+    }
+
+    public double getMiddleVelocityRPM() {
+        return Units.radiansPerSecondToRotationsPerMinute(inputs.middleVelocity);
+    }
+
+    public double getRightVelocityRPM() {
+        return Units.radiansPerSecondToRotationsPerMinute(inputs.rightVelocity);
+    }
+
     public double getVelocitySetpointRadPerSec() {
         return requestedVelocityRadPerSec;
+    }
+
+    public double getVelocitySetpointRPM() {
+        return Units.radiansPerSecondToRotationsPerMinute(requestedVelocityRadPerSec);
+    }
+
+    public ControlPhase getControlPhase() {
+        return phase;
+    }
+
+    public double getVelocityRecoveryRatio() {
+        if (requestedVelocityRadPerSec <= 1e-3) {
+            return 1.0;
+        }
+        return Math.max(
+                0.0,
+                Math.min(1.0, averageFlywheelVelocity() / requestedVelocityRadPerSec));
     }
 
     public double getHoodPositionRad() {
@@ -194,10 +283,10 @@ public class Shooter extends SubsystemBase {
     }
 
     public boolean flywheelsAtSetpoint() {
-        if (requestedVelocityRadPerSec <= ShooterConstants.VELOCITY_TOLERANCE_RAD_PER_SEC) {
+        double tolerance = velocityToleranceRadPerSec();
+        if (requestedVelocityRadPerSec <= tolerance) {
             return false;
         }
-        double tolerance = ShooterConstants.VELOCITY_TOLERANCE_RAD_PER_SEC;
         return Math.abs(requestedVelocityRadPerSec - inputs.leftVelocity) < tolerance
                 && Math.abs(requestedVelocityRadPerSec - inputs.middleVelocity) < tolerance
                 && Math.abs(requestedVelocityRadPerSec - inputs.rightVelocity) < tolerance;
@@ -208,7 +297,7 @@ public class Shooter extends SubsystemBase {
     }
 
     public boolean isRunning() {
-        double tolerance = ShooterConstants.VELOCITY_TOLERANCE_RAD_PER_SEC;
+        double tolerance = velocityToleranceRadPerSec();
         return Math.abs(inputs.leftVelocity) > tolerance
                 || Math.abs(inputs.middleVelocity) > tolerance
                 || Math.abs(inputs.rightVelocity) > tolerance;

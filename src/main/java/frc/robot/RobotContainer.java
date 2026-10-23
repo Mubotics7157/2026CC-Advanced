@@ -14,6 +14,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.auto.AutoModeSelector;
 import frc.robot.commands.DriveMaintainingHeadingCommand;
 import frc.robot.commands.ShootOnTheMoveCommand;
+import frc.robot.commands.ShooterTuningCommands;
 import frc.robot.controlboard.ControlBoard;
 import frc.robot.factories.AutoFactory;
 import frc.robot.factories.IntakeFactory;
@@ -82,6 +83,12 @@ public class RobotContainer {
         configureAutonomousEvents();
         configureBindings();
         SmartDashboard.putBoolean("Is Practice Bot", Constants.kIsPracticeBot);
+        SmartDashboard.putData(
+                "Shooter/Tuning/Run At Tunable Setpoint",
+                ShooterTuningCommands.runAtTunableSetpoint(shooter, superstructure));
+        SmartDashboard.putData(
+                "Shooter/Tuning/Feedforward Characterization",
+                ShooterTuningCommands.feedforwardCharacterization(shooter, superstructure));
     }
 
     private DriveSubsystem buildDriveSystem() {
