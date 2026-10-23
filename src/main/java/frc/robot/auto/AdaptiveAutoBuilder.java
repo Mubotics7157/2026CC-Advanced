@@ -24,6 +24,9 @@ public final class AdaptiveAutoBuilder {
     private boolean visitFirstTarget;
     private boolean visitSecondTarget;
     private boolean visitThirdTarget;
+    private Command firstTargetAction = Commands.none();
+    private Command secondTargetAction = Commands.none();
+    private Command thirdTargetAction = Commands.none();
 
     public AdaptiveAutoBuilder(
             DriveSubsystem drive, RobotState robotState, BooleanSupplier isRedAlliance) {
@@ -57,6 +60,21 @@ public final class AdaptiveAutoBuilder {
         return this;
     }
 
+    public AdaptiveAutoBuilder afterFirstTarget(Command action) {
+        firstTargetAction = action;
+        return this;
+    }
+
+    public AdaptiveAutoBuilder afterSecondTarget(Command action) {
+        secondTargetAction = action;
+        return this;
+    }
+
+    public AdaptiveAutoBuilder afterThirdTarget(Command action) {
+        thirdTargetAction = action;
+        return this;
+    }
+
     public Command build() {
         Command route =
                 Commands.runOnce(
@@ -67,15 +85,18 @@ public final class AdaptiveAutoBuilder {
         if (visitFirstTarget)
             route =
                     route.andThen(
-                            AutoFactory.pathfindTo(drive, robotState, firstTarget, isRedAlliance));
+                            AutoFactory.pathfindTo(drive, robotState, firstTarget, isRedAlliance),
+                            firstTargetAction);
         if (visitSecondTarget)
             route =
                     route.andThen(
-                            AutoFactory.pathfindTo(drive, robotState, secondTarget, isRedAlliance));
+                            AutoFactory.pathfindTo(drive, robotState, secondTarget, isRedAlliance),
+                            secondTargetAction);
         if (visitThirdTarget)
             route =
                     route.andThen(
-                            AutoFactory.pathfindTo(drive, robotState, thirdTarget, isRedAlliance));
+                            AutoFactory.pathfindTo(drive, robotState, thirdTarget, isRedAlliance),
+                            thirdTargetAction);
         return route.withName("Adaptive Autonomous Route");
     }
 }

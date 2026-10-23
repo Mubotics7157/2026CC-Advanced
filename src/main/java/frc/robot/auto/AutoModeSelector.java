@@ -8,8 +8,11 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.RobotContainer;
+import frc.robot.commands.ShootOnTheMoveCommand;
 import frc.robot.factories.AutoFactory;
 import frc.robot.lib.rebuilt.FieldLocation;
+import frc.robot.subsystems.superstructure.Superstructure;
+import frc.robot.subsystems.superstructure.Superstructure.Goal;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import org.littletonrobotics.junction.Logger;
@@ -17,6 +20,9 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /** Dashboard configuration for all Rebuilt file, Choreo, and adaptive autonomous routines. */
 public class AutoModeSelector {
+    private static final double AUTO_INTAKE_DWELL_SECONDS = 1.2;
+    private static final double AUTO_SHOOT_DWELL_SECONDS = 4.0;
+
     public enum DesiredMode {
         DO_NOTHING,
         SYSID_QUASISTATIC_FORWARD,
@@ -111,16 +117,54 @@ public class AutoModeSelector {
                     drive, state, Optional.ofNullable(choreoChooser.get()).orElse(""), red);
             case PATHFIND_TO_LOCATION -> AutoFactory.pathfindTo(
                     drive, state, () -> selected(targetChooser, FieldLocation.HUB_NEAR), red);
-            case ADAPTIVE_ROUTE -> new AdaptiveAutoBuilder(drive, state, red)
-                    .targets(
-                            () -> selected(adaptiveFirstChooser, FieldLocation.DEPOT),
-                            () -> selected(adaptiveSecondChooser, FieldLocation.HUB_NEAR),
-                            () -> selected(adaptiveThirdChooser, FieldLocation.DEPOT))
-                    .visitFirstTarget(true)
-                    .visitSecondTarget(true)
-                    .visitThirdTarget(true)
-                    .build();
+            case ADAPTIVE_ROUTE -> buildAdaptiveRoute(drive, state, red);
         };
+    }
+
+    private Command buildAdaptiveRoute(
+            frc.robot.subsystems.drive.DriveSubsystem drive,
+            frc.robot.RobotState state,
+            BooleanSupplier isRedAlliance) {
+        FieldLocation first = selected(adaptiveFirstChooser, FieldLocation.DEPOT);
+        FieldLocation second = selected(adaptiveSecondChooser, FieldLocation.HUB_NEAR);
+        FieldLocation third = selected(adaptiveThirdChooser, FieldLocation.DEPOT);
+        Superstructure superstructure = container.getSuperstructure();
+
+        return new AdaptiveAutoBuilder(drive, state, isRedAlliance)
+                .targets(() -> first, () -> second, () -> third)
+                .afterFirstTarget(autonomousIntakeAt(first, superstructure))
+                .afterSecondTarget(autonomousShotAt(second, drive, state, superstructure))
+                .afterThirdTarget(autonomousIntakeAt(third, superstructure))
+                .visitFirstTarget(true)
+                .visitSecondTarget(true)
+                .visitThirdTarget(true)
+                .build();
+    }
+
+    private static Command autonomousIntakeAt(
+            FieldLocation target, Superstructure superstructure) {
+        if (!target.isCollectionLocation()) {
+            return Commands.none();
+        }
+
+        return Commands.run(() -> superstructure.setGoal(Goal.INTAKING), superstructure)
+                .withTimeout(AUTO_INTAKE_DWELL_SECONDS)
+                .finallyDo(() -> superstructure.setGoal(Goal.IDLE))
+                .withName("Auto: Intake at " + target.name());
+    }
+
+    private static Command autonomousShotAt(
+            FieldLocation target,
+            frc.robot.subsystems.drive.DriveSubsystem drive,
+            frc.robot.RobotState state,
+            Superstructure superstructure) {
+        if (!target.isHubStagingLocation()) {
+            return Commands.none();
+        }
+
+        return new ShootOnTheMoveCommand(drive, state, superstructure, () -> 0.0, () -> 0.0)
+                .withTimeout(AUTO_SHOOT_DWELL_SECONDS)
+                .withName("Auto: Stationary Hub Shot");
     }
 
     private static FieldLocation selected(

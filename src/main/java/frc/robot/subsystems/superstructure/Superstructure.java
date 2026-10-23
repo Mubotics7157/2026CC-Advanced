@@ -9,6 +9,7 @@ import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.intake.IntakeConstants;
 import frc.robot.subsystems.shooter.Shooter;
 import frc.robot.subsystems.shooter.ShooterConstants;
+import frc.robot.lib.rebuilt.RebuiltHubStatus;
 import org.littletonrobotics.junction.Logger;
 
 public class Superstructure extends SubsystemBase {
@@ -40,6 +41,7 @@ public class Superstructure extends SubsystemBase {
     // toggled off.
     private boolean dumbModeEnabled = false;
     private boolean shooterTuningOverride = false;
+    private boolean ownHubActive;
 
     public Superstructure(Intake intake, Indexer indexer, Shooter shooter) {
         this.intake = intake;
@@ -49,6 +51,7 @@ public class Superstructure extends SubsystemBase {
 
     @Override
     public void periodic() {
+        ownHubActive = RebuiltHubStatus.isOwnHubActive();
         Logger.recordOutput(
                 "Superstructure/CurrentGoal", currentGoal == null ? "IDLE" : currentGoal.name());
         Logger.recordOutput(
@@ -76,6 +79,7 @@ public class Superstructure extends SubsystemBase {
                 shooter.getRightVelocityRadPerSec());
         Logger.recordOutput("Superstructure/ShooterAtSetpoint", shooter.atSetpoint());
         Logger.recordOutput("Superstructure/FeedingLatched", feedingLatched);
+        Logger.recordOutput("Superstructure/OwnHubActive", ownHubActive);
         Logger.recordOutput("Superstructure/DumbModeEnabled", dumbModeEnabled);
         Logger.recordOutput("Superstructure/ShootingVelocityRadPerSec", shootingVelocityRadPerSec);
         Logger.recordOutput("Superstructure/ShootingHoodAngleRad", shootingHoodAngleRad);
@@ -152,7 +156,7 @@ public class Superstructure extends SubsystemBase {
                 // entry to SHOOTING regardless of tolerances or setpoints. The latch keeps
                 // updating in the background so behavior reverts cleanly if dumb mode is
                 // toggled off mid-shot.
-                boolean shouldFeed = feedingLatched || dumbModeEnabled;
+                boolean shouldFeed = ownHubActive && (feedingLatched || dumbModeEnabled);
                 shooter.setLaunchActive(shouldFeed);
                 if (shouldFeed) {
                     indexer.setConveyorVelocity(
@@ -249,7 +253,7 @@ public class Superstructure extends SubsystemBase {
             case OUTTAKING -> intake.isDeployed()
                     && indexer.isConveyorRunning()
                     && indexer.isFeederRunning();
-            case SHOOTING -> feedingLatched || dumbModeEnabled;
+            case SHOOTING -> ownHubActive && (feedingLatched || dumbModeEnabled);
             case IDLE -> intake.isStowed();
             case DEPLOYED_IDLE -> intake.isDeployed();
         };

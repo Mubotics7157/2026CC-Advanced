@@ -114,7 +114,7 @@ public class RobotContainer {
             return new VisionSubsystem(
                     new VisionIOSimPhoton(robotState, simulatedRobotState), robotState);
         }
-        return new VisionSubsystem(new VisionIOHardwareLimelight(robotState), robotState);
+        return new VisionSubsystem(new VisionIOHardwareLimelight(), robotState);
     }
 
     /**

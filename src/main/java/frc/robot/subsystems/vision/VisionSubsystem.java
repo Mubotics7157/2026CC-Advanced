@@ -37,70 +37,6 @@ public class VisionSubsystem extends SubsystemBase {
         this.state = state;
     }
 
-    /** Fuses two vision pose estimates using inverse-variance weighting. */
-    private VisionFieldPoseEstimate fuseEstimates(
-            VisionFieldPoseEstimate a, VisionFieldPoseEstimate b) {
-        // Ensure b is the newer measurement
-        if (b.getTimestampSeconds() < a.getTimestampSeconds()) {
-            VisionFieldPoseEstimate tmp = a;
-            a = b;
-            b = tmp;
-        }
-
-        // Preview both estimates to the same timestamp
-        Transform2d a_T_b =
-                state.getFieldToRobot(b.getTimestampSeconds())
-                        .get()
-                        .minus(state.getFieldToRobot(a.getTimestampSeconds()).get());
-
-        Pose2d poseA = a.getVisionRobotPoseMeters().transformBy(a_T_b);
-        Pose2d poseB = b.getVisionRobotPoseMeters();
-
-        // Inverse‑variance weighting
-        var varianceA =
-                a.getVisionMeasurementStdDevs().elementTimes(a.getVisionMeasurementStdDevs());
-        var varianceB =
-                b.getVisionMeasurementStdDevs().elementTimes(b.getVisionMeasurementStdDevs());
-
-        Rotation2d fusedHeading = poseB.getRotation();
-        if (varianceA.get(2, 0) < VisionConstants.kLargeVariance
-                && varianceB.get(2, 0) < VisionConstants.kLargeVariance) {
-            fusedHeading =
-                    new Rotation2d(
-                            poseA.getRotation().getCos() / varianceA.get(2, 0)
-                                    + poseB.getRotation().getCos() / varianceB.get(2, 0),
-                            poseA.getRotation().getSin() / varianceA.get(2, 0)
-                                    + poseB.getRotation().getSin() / varianceB.get(2, 0));
-        }
-
-        double weightAx = 1.0 / varianceA.get(0, 0);
-        double weightAy = 1.0 / varianceA.get(1, 0);
-        double weightBx = 1.0 / varianceB.get(0, 0);
-        double weightBy = 1.0 / varianceB.get(1, 0);
-
-        Pose2d fusedPose =
-                new Pose2d(
-                        new Translation2d(
-                                (poseA.getTranslation().getX() * weightAx
-                                                + poseB.getTranslation().getX() * weightBx)
-                                        / (weightAx + weightBx),
-                                (poseA.getTranslation().getY() * weightAy
-                                                + poseB.getTranslation().getY() * weightBy)
-                                        / (weightAy + weightBy)),
-                        fusedHeading);
-
-        Matrix<N3, N1> fusedStdDev =
-                VecBuilder.fill(
-                        Math.sqrt(1.0 / (weightAx + weightBx)),
-                        Math.sqrt(1.0 / (weightAy + weightBy)),
-                        Math.sqrt(1.0 / (1.0 / varianceA.get(2, 0) + 1.0 / varianceB.get(2, 0))));
-
-        int numTags = a.getNumTags() + b.getNumTags();
-        double time = b.getTimestampSeconds();
-
-        return new VisionFieldPoseEstimate(fusedPose, time, fusedStdDev, numTags);
-    }
-
     @Override
     public void periodic() {
         double startTime = RobotTime.getTimestampSeconds();
@@ -212,8 +148,10 @@ public class VisionSubsystem extends SubsystemBase {
             return Optional.empty();
         }
 
-        // Use Megatag directly when 2 or more tags are visible
-        if (poseEstimate.fiducialIds().length > 1) {
+        // Gyro fusion is only defined for exactly one observed tag.
+        if (poseEstimate.fiducialIds().length != 1
+                || !Double.isFinite(poseEstimate.timestampSeconds())
+                || !hasValidStandardDeviations(cam)) {
             return Optional.empty();
         }
 
@@ -276,15 +214,32 @@ public class VisionSubsystem extends SubsystemBase {
             return Optional.empty();
         }
 
+        if (poseEstimate.fiducialIds().length == 0
+                || !Double.isFinite(poseEstimate.timestampSeconds())
+                || !Double.isFinite(poseEstimate.quality())
+                || poseEstimate.quality() <= 0.0
+                || !Double.isFinite(poseEstimate.fieldToRobot().getX())
+                || !Double.isFinite(poseEstimate.fieldToRobot().getY())
+                || !Double.isFinite(poseEstimate.fieldToRobot().getRotation().getRadians())
+                || !hasValidStandardDeviations(cam)
+                || cam.pose3d == null
+                || !Double.isFinite(cam.pose3d.getZ())) {
+            return Optional.empty();
+        }
+
         // Single‑tag extra checks
         if (poseEstimate.fiducialIds().length < 2) {
-            for (var fiducial : cam.fiducialObservations) {
-                if (fiducial.ambiguity() > VisionConstants.kDefaultAmbiguityThreshold) {
-                    return Optional.empty();
+            if (cam.fiducialObservations != null) {
+                for (var fiducial : cam.fiducialObservations) {
+                    if (!Double.isFinite(fiducial.ambiguity())
+                            || fiducial.ambiguity() > VisionConstants.kDefaultAmbiguityThreshold) {
+                        return Optional.empty();
+                    }
                 }
             }
 
-            if (poseEstimate.avgTagArea() < VisionConstants.kTagMinAreaForSingleTagMegatag) {
+            if (!Double.isFinite(poseEstimate.avgTagArea())
+                    || poseEstimate.avgTagArea() < VisionConstants.kTagMinAreaForSingleTagMegatag) {
                 return Optional.empty();
             }
 
@@ -348,6 +303,26 @@ public class VisionSubsystem extends SubsystemBase {
                         poseEstimate.timestampSeconds(),
                         visionStdDevs,
                         poseEstimate.fiducialIds().length));
+    }
+
+    private static boolean hasValidStandardDeviations(
+            VisionIO.VisionIOInputs.CameraInputs cam) {
+        double[] deviations = cam.standardDeviations;
+        if (deviations == null || deviations.length < VisionConstants.kExpectedStdDevArrayLength) {
+            return false;
+        }
+
+        int[] requiredIndices = {
+            VisionConstants.kMegatag1XStdDevIndex,
+            VisionConstants.kMegatag1YStdDevIndex,
+            VisionConstants.kMegatag1YawStdDevIndex
+        };
+        for (int index : requiredIndices) {
+            if (!Double.isFinite(deviations[index]) || deviations[index] <= 0.0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public void setUseVision(boolean useVision) {
