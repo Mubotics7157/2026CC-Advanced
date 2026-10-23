@@ -1,7 +1,7 @@
 package frc.robot.subsystems.shooter;
 
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import org.littletonrobotics.junction.Logger;
 
@@ -24,7 +24,8 @@ public class Shooter extends SubsystemBase {
     private boolean launchActive = false;
     private boolean manualVoltageOverride = false;
     private boolean previousLaunchActive = false;
-    private double previousVelocityRadPerSec = 0.0;
+    private boolean ballEventArmed = true;
+    private boolean ballEntryDetectedThisCycle = false;
     private double phaseStartTimestampSec = 0.0;
     private ControlPhase phase = ControlPhase.DISABLED;
 
@@ -35,6 +36,7 @@ public class Shooter extends SubsystemBase {
     @Override
     public void periodic() {
         io.updateInputs(inputs);
+        ballEntryDetectedThisCycle = false;
 
         if (ShooterConstants.hasAnyShooterPIDChanged()) {
             io.updateShooterConfig();
@@ -46,7 +48,12 @@ public class Shooter extends SubsystemBase {
             inputs.controlPhase = phase.name();
             Logger.processInputs("Shooter", inputs);
             logTelemetry();
+            previousLaunchActive = launchActive;
             return;
+        }
+
+        if (!launchActive) {
+            ballEventArmed = true;
         }
 
         if (!enabled || requestedVelocityRadPerSec <= 1e-3) {
@@ -61,7 +68,6 @@ public class Shooter extends SubsystemBase {
         inputs.controlPhase = phase.name();
         Logger.processInputs("Shooter", inputs);
         logTelemetry();
-        previousVelocityRadPerSec = averageFlywheelVelocity();
         previousLaunchActive = launchActive;
     }
 
@@ -82,10 +88,15 @@ public class Shooter extends SubsystemBase {
                 boolean launchRisingEdge = launchActive && !previousLaunchActive;
                 boolean ballEntryByVelocityDrop =
                         launchActive
-                                && previousVelocityRadPerSec - averageFlywheelVelocity()
+                                && requestedVelocityRadPerSec - averageFlywheelVelocity()
                                         > rpmToRadPerSec(
-                                                ShooterConstants.BALL_ENTRY_DROP_RPM.get());
-                if (launchRisingEdge || ballEntryByVelocityDrop) {
+                                                Math.max(
+                                                        0.0,
+                                                        ShooterConstants.BALL_ENTRY_DROP_RPM
+                                                                .get()));
+                if (ballEventArmed && (launchRisingEdge || ballEntryByVelocityDrop)) {
+                    ballEventArmed = false;
+                    ballEntryDetectedThisCycle = true;
                     transitionTo(ControlPhase.BALL);
                 }
             }
@@ -99,6 +110,7 @@ public class Shooter extends SubsystemBase {
             case RECOVERY -> {
                 io.runVelocityDutyCycleBangBang(requestedVelocityRadPerSec);
                 if (isNearTarget(rpmToRadPerSec(ShooterConstants.RECOVERY_READY_RPM.get()))) {
+                    ballEventArmed = true;
                     transitionTo(ControlPhase.IDLE);
                 }
             }
@@ -134,6 +146,7 @@ public class Shooter extends SubsystemBase {
         Logger.recordOutput("Shooter/VelocitySetpointRadPerSec", requestedVelocityRadPerSec);
         Logger.recordOutput("Shooter/ControlPhase", phase.name());
         Logger.recordOutput("Shooter/LaunchActive", launchActive);
+        Logger.recordOutput("Shooter/BallEntryDetected", ballEntryDetectedThisCycle);
         Logger.recordOutput("Shooter/LeftVoltage", inputs.leftVoltage);
         Logger.recordOutput("Shooter/MiddleVoltage", inputs.middleVoltage);
         Logger.recordOutput("Shooter/RightVoltage", inputs.rightVoltage);
@@ -202,6 +215,9 @@ public class Shooter extends SubsystemBase {
 
     public void setLaunchActive(boolean active) {
         launchActive = active;
+        if (!active) {
+            ballEventArmed = true;
+        }
     }
 
     /** Applies open-loop voltage to all three flywheels until a velocity request or stop occurs. */
@@ -220,6 +236,7 @@ public class Shooter extends SubsystemBase {
         requestedVelocityRadPerSec = 0.0;
         manualVoltageOverride = false;
         launchActive = false;
+        ballEventArmed = true;
         phase = ControlPhase.DISABLED;
         io.stop();
         setHoodAngle(ShooterConstants.HOOD_MIN_ANGLE_RAD);

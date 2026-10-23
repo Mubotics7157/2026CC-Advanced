@@ -16,12 +16,9 @@ public final class ShooterSetpoints {
     public static final double MIN_SHOOTING_DISTANCE_METERS = 1.5;
     public static final double MAX_SHOOTING_DISTANCE_METERS = 6.0;
 
-    /*
-     * Default target is the center of the alliance scoring target. These are intentionally easy
-     * to retune once the real 2026 field target is finalized/measured.
-     */
+    /** Official blue Hub center: 158.6 in from the blue Alliance Wall, centered across field. */
     public static final Translation2d BLUE_TARGET_TRANSLATION =
-            new Translation2d(Units.inchesToMeters(66.0), FieldConstants.fieldWidth / 2.0);
+            new Translation2d(Units.inchesToMeters(158.6), FieldConstants.fieldWidth / 2.0);
     public static final Translation2d RED_TARGET_TRANSLATION =
             Util.flipRedBlue(BLUE_TARGET_TRANSLATION);
 
