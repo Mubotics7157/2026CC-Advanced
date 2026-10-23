@@ -222,7 +222,8 @@ public class Shooter extends SubsystemBase {
 
     /** Applies open-loop voltage to all three flywheels until a velocity request or stop occurs. */
     public void runVoltage(double volts) {
-        double maxVolts = Math.min(6.0, Math.max(0.0, ShooterConstants.CHARACTERIZATION_MAX_VOLTS.get()));
+        double maxVolts =
+                Math.min(6.0, Math.max(0.0, ShooterConstants.CHARACTERIZATION_MAX_VOLTS.get()));
         double clampedVolts = Math.max(-maxVolts, Math.min(maxVolts, volts));
         enabled = false;
         requestedVelocityRadPerSec = 0.0;
@@ -282,9 +283,7 @@ public class Shooter extends SubsystemBase {
         if (requestedVelocityRadPerSec <= 1e-3) {
             return 1.0;
         }
-        return Math.max(
-                0.0,
-                Math.min(1.0, averageFlywheelVelocity() / requestedVelocityRadPerSec));
+        return Math.max(0.0, Math.min(1.0, averageFlywheelVelocity() / requestedVelocityRadPerSec));
     }
 
     public double getHoodPositionRad() {

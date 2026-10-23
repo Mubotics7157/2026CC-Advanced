@@ -19,6 +19,7 @@ public final class ShooterSetpoints {
     /** Official blue Hub center: 158.6 in from the blue Alliance Wall, centered across field. */
     public static final Translation2d BLUE_TARGET_TRANSLATION =
             new Translation2d(Units.inchesToMeters(158.6), FieldConstants.fieldWidth / 2.0);
+
     public static final Translation2d RED_TARGET_TRANSLATION =
             Util.flipRedBlue(BLUE_TARGET_TRANSLATION);
 

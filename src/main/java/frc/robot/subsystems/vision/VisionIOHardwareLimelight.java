@@ -8,6 +8,7 @@ import frc.robot.lib.limelight.LimelightHelpers;
 public class VisionIOHardwareLimelight implements VisionIO {
     private final NetworkTable table =
             NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightTableName);
+
     /** Creates a new Limelight vision IO instance. */
     public VisionIOHardwareLimelight() {
         setLLSettings();
@@ -59,8 +60,7 @@ public class VisionIOHardwareLimelight implements VisionIO {
                     camera.pose3d = robotPose3d;
                 }
 
-                camera.standardDeviations =
-                        table.getEntry("stddevs").getDoubleArray(new double[0]);
+                camera.standardDeviations = table.getEntry("stddevs").getDoubleArray(new double[0]);
             } catch (Exception e) {
                 System.err.println("Error processing Limelight data: " + e.getMessage());
             }

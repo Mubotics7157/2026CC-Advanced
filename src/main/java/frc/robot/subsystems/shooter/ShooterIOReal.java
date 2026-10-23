@@ -55,9 +55,7 @@ public class ShooterIOReal implements ShooterIO {
         rightMotor = new TalonFX(ShooterConstants.RIGHT_MOTOR_ID, ShooterConstants.CAN_BUS);
 
         configureMotor(
-                leftMotor,
-                InvertedValue.CounterClockwise_Positive,
-                ShooterConstants.Flywheel.LEFT);
+                leftMotor, InvertedValue.CounterClockwise_Positive, ShooterConstants.Flywheel.LEFT);
         configureMotor(
                 middleMotor,
                 InvertedValue.CounterClockwise_Positive,
@@ -229,8 +227,7 @@ public class ShooterIOReal implements ShooterIO {
         motor.getConfigurator().apply(config);
     }
 
-    private static void updateMotorConfig(
-            TalonFX motor, ShooterConstants.Flywheel flywheel) {
+    private static void updateMotorConfig(TalonFX motor, ShooterConstants.Flywheel flywheel) {
         var slot0 = new Slot0Configs();
         applyShooterGains(slot0, flywheel);
         motor.getConfigurator().apply(slot0);
@@ -240,8 +237,7 @@ public class ShooterIOReal implements ShooterIO {
         motor.getConfigurator().apply(slot1);
 
         var currentLimits = new com.ctre.phoenix6.configs.CurrentLimitsConfigs();
-        currentLimits.StatorCurrentLimit =
-                ShooterConstants.SHOOTER_STATOR_CURRENT_LIMIT_AMPS.get();
+        currentLimits.StatorCurrentLimit = ShooterConstants.SHOOTER_STATOR_CURRENT_LIMIT_AMPS.get();
         currentLimits.StatorCurrentLimitEnable = true;
         motor.getConfigurator().apply(currentLimits);
 
@@ -252,8 +248,7 @@ public class ShooterIOReal implements ShooterIO {
         motor.getConfigurator().apply(torqueCurrent);
     }
 
-    private static void applyShooterGains(
-            Slot0Configs slot0, ShooterConstants.Flywheel flywheel) {
+    private static void applyShooterGains(Slot0Configs slot0, ShooterConstants.Flywheel flywheel) {
         slot0.kS = flywheel.kS.get();
         slot0.kV = flywheel.kV.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
         slot0.kA = flywheel.kA.get() * ShooterConstants.SHOOTER_GEAR_RATIO;

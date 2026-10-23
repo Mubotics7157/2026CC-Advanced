@@ -123,7 +123,11 @@ public final class ShooterTuningCommands {
         int count = Math.min(velocitySamples.size(), voltageSamples.size());
         if (count < 10) {
             System.out.println(
-                    "Shooter " + wheel + " kS/kV characterization failed: only " + count + " samples");
+                    "Shooter "
+                            + wheel
+                            + " kS/kV characterization failed: only "
+                            + count
+                            + " samples");
             return;
         }
 
@@ -142,7 +146,8 @@ public final class ShooterTuningCommands {
 
         double denominator = count * sumX2 - sumX * sumX;
         if (Math.abs(denominator) < 1e-9) {
-            System.out.println("Shooter " + wheel + " kS/kV characterization failed: no velocity range");
+            System.out.println(
+                    "Shooter " + wheel + " kS/kV characterization failed: no velocity range");
             return;
         }
 

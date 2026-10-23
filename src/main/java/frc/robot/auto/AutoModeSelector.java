@@ -141,8 +141,7 @@ public class AutoModeSelector {
                 .build();
     }
 
-    private static Command autonomousIntakeAt(
-            FieldLocation target, Superstructure superstructure) {
+    private static Command autonomousIntakeAt(FieldLocation target, Superstructure superstructure) {
         if (!target.isCollectionLocation()) {
             return Commands.none();
         }

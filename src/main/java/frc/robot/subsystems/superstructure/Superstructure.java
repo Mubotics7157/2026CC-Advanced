@@ -4,12 +4,12 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.lib.rebuilt.RebuiltHubStatus;
 import frc.robot.subsystems.indexer.Indexer;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.intake.IntakeConstants;
 import frc.robot.subsystems.shooter.Shooter;
 import frc.robot.subsystems.shooter.ShooterConstants;
-import frc.robot.lib.rebuilt.RebuiltHubStatus;
 import org.littletonrobotics.junction.Logger;
 
 public class Superstructure extends SubsystemBase {
@@ -210,7 +210,9 @@ public class Superstructure extends SubsystemBase {
         shotReadyToFeed = true;
     }
 
-    /** Temporarily gives a tuning command exclusive control of the shooter; feeding stays stopped. */
+    /**
+     * Temporarily gives a tuning command exclusive control of the shooter; feeding stays stopped.
+     */
     public void setShooterTuningOverride(boolean enabled) {
         shooterTuningOverride = enabled;
         if (enabled) {
