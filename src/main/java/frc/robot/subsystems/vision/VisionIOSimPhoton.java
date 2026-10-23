@@ -5,7 +5,6 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.units.Units;
 import edu.wpi.first.wpilibj.Timer;
-import frc.robot.RobotState;
 import frc.robot.lib.util.FieldConstants;
 import frc.robot.simulation.SimulatedRobotState;
 import java.util.ArrayList;
@@ -33,8 +32,8 @@ public class VisionIOSimPhoton extends VisionIOHardwareLimelight {
     private final int kResHeight = 800;
 
     /** Creates a new simulated vision IO instance using PhotonVision. */
-    public VisionIOSimPhoton(RobotState state, SimulatedRobotState simRobotState) {
-        super(state);
+    public VisionIOSimPhoton(SimulatedRobotState simRobotState) {
+        super();
         this.simRobotState = simRobotState;
 
         visionSim = new VisionSystemSim("main");

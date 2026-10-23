@@ -112,7 +112,7 @@ public class RobotContainer {
     private VisionSubsystem buildVisionSystem() {
         if (RobotBase.isSimulation()) {
             return new VisionSubsystem(
-                    new VisionIOSimPhoton(robotState, simulatedRobotState), robotState);
+                    new VisionIOSimPhoton(simulatedRobotState), robotState);
         }
         return new VisionSubsystem(new VisionIOHardwareLimelight(), robotState);
     }
