@@ -21,8 +21,10 @@ public final class ShooterConstants {
     public static final double SHOOTER_STATOR_CURRENT_LIMIT = 120.0;
 
     public static final double VELOCITY_TOLERANCE_RAD_PER_SEC =
-            Units.rotationsPerMinuteToRadiansPerSecond(
-                    10000.0); // TODO: Update this value after mechanism tuning.
+            Units.rotationsPerMinuteToRadiansPerSecond(100.0);
+    public static final double SHOOTER_MAX_VELOCITY_RAD_PER_SEC =
+            Units.rotationsPerMinuteToRadiansPerSecond(6000.0);
+    public static final double SHOOTER_PEAK_TORQUE_CURRENT_AMPS = 120.0;
     public static final double HOOD_MIN_ANGLE_RAD = Units.degreesToRadians(20.0);
     public static final double HOOD_MAX_ANGLE_RAD = Units.degreesToRadians(65.0);
 
@@ -74,6 +76,20 @@ public final class ShooterConstants {
     public static final LoggedTunableNumber SHOOTER_KD =
             new LoggedTunableNumber("Shooter/Shooter/kD", 0.0);
 
+    /** Large slot-1 gain with forward-only duty-cycle limits emulates BangBang control. */
+    public static final LoggedTunableNumber BANG_BANG_KP =
+            new LoggedTunableNumber("Shooter/BangBang/kP", 999999.0);
+    public static final LoggedTunableNumber STARTUP_READY_RPM =
+            new LoggedTunableNumber("Shooter/Phase/StartupReadyRPM", 80.0);
+    public static final LoggedTunableNumber RECOVERY_READY_RPM =
+            new LoggedTunableNumber("Shooter/Phase/RecoveryReadyRPM", 60.0);
+    public static final LoggedTunableNumber BALL_ENTRY_DROP_RPM =
+            new LoggedTunableNumber("Shooter/Phase/BallEntryDropRPM", 120.0);
+    public static final LoggedTunableNumber BALL_PHASE_DURATION_SEC =
+            new LoggedTunableNumber("Shooter/Phase/BallDurationSec", 0.06);
+    public static final LoggedTunableNumber BALL_TORQUE_CURRENT_AMPS =
+            new LoggedTunableNumber("Shooter/Phase/BallTorqueCurrentAmps", 29.0);
+
     public static final double STATUS_SIGNAL_UPDATE_FREQUENCY = 50.0;
     public static final double SHOOTER_MOI = 0.003;
 
@@ -83,6 +99,7 @@ public final class ShooterConstants {
                 || SHOOTER_KA.hasChanged(SHOOTER_TUNABLE_ID)
                 || SHOOTER_KP.hasChanged(SHOOTER_TUNABLE_ID)
                 || SHOOTER_KI.hasChanged(SHOOTER_TUNABLE_ID)
-                || SHOOTER_KD.hasChanged(SHOOTER_TUNABLE_ID);
+                || SHOOTER_KD.hasChanged(SHOOTER_TUNABLE_ID)
+                || BANG_BANG_KP.hasChanged(SHOOTER_TUNABLE_ID);
     }
 }

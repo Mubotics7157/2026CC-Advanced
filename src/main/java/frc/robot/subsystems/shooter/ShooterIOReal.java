@@ -3,7 +3,10 @@ package frc.robot.subsystems.shooter;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.Slot0Configs;
+import com.ctre.phoenix6.configs.Slot1Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.TorqueCurrentFOC;
+import com.ctre.phoenix6.controls.VelocityDutyCycle;
 import com.ctre.phoenix6.controls.VelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -22,6 +25,8 @@ public class ShooterIOReal implements ShooterIO {
     private final TalonFX rightMotor;
 
     private final VelocityTorqueCurrentFOC velocityRequest = new VelocityTorqueCurrentFOC(0.0);
+    private final VelocityDutyCycle bangBangRequest = new VelocityDutyCycle(0.0).withSlot(1);
+    private final TorqueCurrentFOC torqueCurrentRequest = new TorqueCurrentFOC(0.0);
 
     private final StatusSignal<AngularVelocity> leftVelocity;
     private final StatusSignal<AngularVelocity> middleVelocity;
@@ -111,6 +116,7 @@ public class ShooterIOReal implements ShooterIO {
         inputs.rightCurrent = rightCurrent.getValueAsDouble();
 
         inputs.velocitySetpoint = velocitySetpoint;
+        inputs.requestedVelocity = velocitySetpoint;
         inputs.leftHoodServoPosition =
                 leftHoodServo.map(Servo::getPosition).orElse(hoodServoSetpoint);
         inputs.rightHoodServoPosition =
@@ -131,6 +137,23 @@ public class ShooterIOReal implements ShooterIO {
         leftMotor.setControl(velocityRequest.withVelocity(velocityRotationsPerSec));
         middleMotor.setControl(velocityRequest.withVelocity(velocityRotationsPerSec));
         rightMotor.setControl(velocityRequest.withVelocity(velocityRotationsPerSec));
+    }
+
+    @Override
+    public void runVelocityDutyCycleBangBang(double velocityRadPerSec) {
+        velocitySetpoint = velocityRadPerSec;
+        double velocityRotationsPerSec = Units.radiansToRotations(velocityRadPerSec);
+        leftMotor.setControl(bangBangRequest.withVelocity(velocityRotationsPerSec));
+        middleMotor.setControl(bangBangRequest.withVelocity(velocityRotationsPerSec));
+        rightMotor.setControl(bangBangRequest.withVelocity(velocityRotationsPerSec));
+    }
+
+    @Override
+    public void runTorqueCurrent(double torqueCurrentAmps) {
+        double output = MathUtil.clamp(torqueCurrentAmps, 0.0, ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS);
+        leftMotor.setControl(torqueCurrentRequest.withOutput(output));
+        middleMotor.setControl(torqueCurrentRequest.withOutput(output));
+        rightMotor.setControl(torqueCurrentRequest.withOutput(output));
     }
 
     @Override
@@ -164,16 +187,28 @@ public class ShooterIOReal implements ShooterIO {
         leftMotor.getConfigurator().apply(slot0);
         middleMotor.getConfigurator().apply(slot0);
         rightMotor.getConfigurator().apply(slot0);
+
+        var slot1 = new Slot1Configs();
+        slot1.kP = ShooterConstants.BANG_BANG_KP.get();
+        leftMotor.getConfigurator().apply(slot1);
+        middleMotor.getConfigurator().apply(slot1);
+        rightMotor.getConfigurator().apply(slot1);
     }
 
     private static void configureMotor(TalonFX motor, InvertedValue inverted) {
         var config = new TalonFXConfiguration();
         config.MotorOutput.NeutralMode = NeutralModeValue.Coast;
         config.MotorOutput.Inverted = inverted;
+        config.MotorOutput.PeakForwardDutyCycle = 1.0;
+        config.MotorOutput.PeakReverseDutyCycle = 0.0;
         config.CurrentLimits.StatorCurrentLimit = ShooterConstants.SHOOTER_STATOR_CURRENT_LIMIT;
         config.CurrentLimits.StatorCurrentLimitEnable = true;
         config.Feedback.SensorToMechanismRatio = ShooterConstants.SHOOTER_GEAR_RATIO;
         applyShooterGains(config.Slot0);
+        config.Slot1.kP = ShooterConstants.BANG_BANG_KP.get();
+        config.TorqueCurrent.PeakForwardTorqueCurrent =
+                ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS;
+        config.TorqueCurrent.PeakReverseTorqueCurrent = 0.0;
         motor.getConfigurator().apply(config);
     }
 

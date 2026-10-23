@@ -145,6 +145,7 @@ public class Superstructure extends SubsystemBase {
                 // updating in the background so behavior reverts cleanly if dumb mode is
                 // toggled off mid-shot.
                 boolean shouldFeed = feedingLatched || dumbModeEnabled;
+                shooter.setLaunchActive(shouldFeed);
                 if (shouldFeed) {
                     indexer.setConveyorVelocity(
                             SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);

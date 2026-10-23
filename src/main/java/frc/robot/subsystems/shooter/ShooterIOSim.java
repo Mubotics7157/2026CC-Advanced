@@ -44,6 +44,7 @@ public class ShooterIOSim implements ShooterIO {
         inputs.rightCurrent = rightSim.getCurrentDrawAmps();
 
         inputs.velocitySetpoint = velocitySetpoint;
+        inputs.requestedVelocity = velocitySetpoint;
         inputs.leftHoodServoPosition = hoodServoPosition;
         inputs.rightHoodServoPosition = hoodServoPosition;
         inputs.hoodServoSetpoint = hoodServoPosition;
@@ -61,6 +62,33 @@ public class ShooterIOSim implements ShooterIO {
         leftSim.setInputVoltage(leftAppliedVolts);
         middleSim.setInputVoltage(middleAppliedVolts);
         rightSim.setInputVoltage(rightAppliedVolts);
+    }
+
+    @Override
+    public void runVelocityDutyCycleBangBang(double velocityRadPerSec) {
+        velocitySetpoint = velocityRadPerSec;
+        leftAppliedVolts = bangBangVoltage(leftSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
+        middleAppliedVolts = bangBangVoltage(middleSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
+        rightAppliedVolts = bangBangVoltage(rightSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
+        leftSim.setInputVoltage(leftAppliedVolts);
+        middleSim.setInputVoltage(middleAppliedVolts);
+        rightSim.setInputVoltage(rightAppliedVolts);
+    }
+
+    @Override
+    public void runTorqueCurrent(double torqueCurrentAmps) {
+        double voltage =
+                MathUtil.clamp(
+                        torqueCurrentAmps / ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS
+                                * MAX_VOLTAGE,
+                        0.0,
+                        MAX_VOLTAGE);
+        leftAppliedVolts = voltage;
+        middleAppliedVolts = voltage;
+        rightAppliedVolts = voltage;
+        leftSim.setInputVoltage(voltage);
+        middleSim.setInputVoltage(voltage);
+        rightSim.setInputVoltage(voltage);
     }
 
     @Override
@@ -96,5 +124,9 @@ public class ShooterIOSim implements ShooterIO {
     private static double calculateVoltage(DCMotorSim sim, double velocityRadPerSec) {
         double error = velocityRadPerSec - sim.getAngularVelocityRadPerSec();
         return MathUtil.clamp(error * 0.1, -MAX_VOLTAGE, MAX_VOLTAGE);
+    }
+
+    private static double bangBangVoltage(double measuredVelocity, double setpoint) {
+        return measuredVelocity < setpoint ? MAX_VOLTAGE : 0.0;
     }
 }
