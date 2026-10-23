@@ -41,6 +41,10 @@ import org.littletonrobotics.junction.Logger;
  * vision systems.
  */
 public class DriveSubsystem extends SubsystemBase {
+    private static final String[] SYSID_MODULE_NAMES = {
+        "FrontLeft", "FrontRight", "BackLeft", "BackRight"
+    };
+
     private final DriveIO io;
 
     private final DriveIOInputsAutoLogged inputs = new DriveIOInputsAutoLogged();
@@ -73,7 +77,10 @@ public class DriveSubsystem extends SubsystemBase {
                                 null,
                                 null,
                                 null,
-                                state -> Logger.recordOutput("Drive/SysIdState", state.toString())),
+                                state -> {
+                                    Logger.recordOutput("SysIdTestState", state.toString());
+                                    Logger.recordOutput("Drive/SysIdState", state.toString());
+                                }),
                         new SysIdRoutine.Mechanism(
                                 voltage ->
                                         io.runCharacterization(
@@ -160,6 +167,18 @@ public class DriveSubsystem extends SubsystemBase {
         // Mechanical Advantage-style logs
         Logger.recordOutput("Odometry/Robot", inputs.pose);
         Logger.recordOutput("SwerveStates/Measured", inputs.moduleStates);
+        for (int i = 0;
+                i < SYSID_MODULE_NAMES.length
+                        && i < inputs.modulePositions.length
+                        && i < inputs.moduleStates.length
+                        && i < inputs.moduleDriveAppliedVolts.length;
+                i++) {
+            String key = "Drive/SysId/" + SYSID_MODULE_NAMES[i] + "/";
+            Logger.recordOutput(key + "PositionMeters", inputs.modulePositions[i].distanceMeters);
+            Logger.recordOutput(
+                    key + "VelocityMetersPerSec", inputs.moduleStates[i].speedMetersPerSecond);
+            Logger.recordOutput(key + "AppliedVolts", inputs.moduleDriveAppliedVolts[i]);
+        }
         Logger.recordOutput(
                 "SwerveChassisSpeeds/Measured", robotState.getLatestRobotRelativeChassisSpeed());
 

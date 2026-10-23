@@ -4,6 +4,7 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
@@ -25,6 +26,8 @@ public interface DriveIO {
         public int failedDaqs = 0;
         public SwerveModuleState[] moduleStates = new SwerveModuleState[] {};
         public SwerveModuleState[] moduleTargets = new SwerveModuleState[] {};
+        public SwerveModulePosition[] modulePositions = new SwerveModulePosition[] {};
+        public double[] moduleDriveAppliedVolts = new double[] {};
         public ChassisSpeeds speeds = new ChassisSpeeds();
         public double odometryPeriod = 0.0;
 

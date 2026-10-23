@@ -20,6 +20,7 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.LinearAcceleration;
+import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.Subsystem;
@@ -50,6 +51,7 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
     private final StatusSignal<Angle> pitch;
     private final StatusSignal<LinearAcceleration> accelerationX;
     private final StatusSignal<LinearAcceleration> accelerationY;
+    private final StatusSignal<Voltage>[] driveMotorVoltageSignals;
 
     private final RobotState robotState;
     final Consumer<SwerveDriveState> telemetryConsumer_;
@@ -77,6 +79,15 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
         accelerationX = getPigeon2().getAccelerationX();
         accelerationY = getPigeon2().getAccelerationY();
 
+        int moduleCount = getModules().length;
+        @SuppressWarnings("unchecked")
+        StatusSignal<Voltage>[] moduleVoltageSignals =
+                (StatusSignal<Voltage>[]) new StatusSignal[moduleCount];
+        for (int i = 0; i < moduleCount; i++) {
+            moduleVoltageSignals[i] = getModule(i).getDriveMotor().getMotorVoltage();
+        }
+        driveMotorVoltageSignals = moduleVoltageSignals;
+
         BaseStatusSignal.setUpdateFrequencyForAll(100, angularYawVelocity);
         BaseStatusSignal.setUpdateFrequencyForAll(
                 50,
@@ -86,6 +97,7 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
                 pitch,
                 accelerationX,
                 accelerationY);
+        BaseStatusSignal.setUpdateFrequencyForAll(100, driveMotorVoltageSignals);
 
         this.getOdometryThread().setThreadPriority(99);
 
@@ -138,8 +150,17 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
         inputs.failedDaqs = driveState.FailedDaqs;
         inputs.moduleStates = driveState.ModuleStates;
         inputs.moduleTargets = driveState.ModuleTargets;
+        inputs.modulePositions = driveState.ModulePositions;
         inputs.speeds = driveState.Speeds;
         inputs.odometryPeriod = driveState.OdometryPeriod;
+
+        BaseStatusSignal.refreshAll(driveMotorVoltageSignals);
+        if (inputs.moduleDriveAppliedVolts.length != driveMotorVoltageSignals.length) {
+            inputs.moduleDriveAppliedVolts = new double[driveMotorVoltageSignals.length];
+        }
+        for (int i = 0; i < driveMotorVoltageSignals.length; i++) {
+            inputs.moduleDriveAppliedVolts[i] = driveMotorVoltageSignals[i].getValueAsDouble();
+        }
 
         Rotation2d gyroRotation = inputs.pose.getRotation();
         inputs.gyroYawDeg = gyroRotation.getDegrees();
