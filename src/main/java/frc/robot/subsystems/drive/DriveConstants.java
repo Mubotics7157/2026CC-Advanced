@@ -29,9 +29,9 @@ public class DriveConstants {
                             : CompTunerConstants.createDrivetrain());
 
     // Used by MapleSim configuration
-    public static final double kRobotWeightPounds = 86.0;
-    public static final double kBumperLengthInches = 32.0;
-    public static final double kBumperWidthInches = 32.0;
+    public static final double kRobotWeightPounds = 95.6;
+    public static final double kBumperLengthInches = 34.5;
+    public static final double kBumperWidthInches = 32.5;
     public static final double kWheelCoefficientOfFriction = 1.48;
     public static final int kDriveMotorCount = 1;
 
