@@ -41,18 +41,28 @@ public record MegatagPoseEstimate(
         if (fieldToRobot == null) {
             fieldToRobot = MathHelpers.kPose2dZero;
         }
-        int[] fiducialIds = new int[poseEstimate.rawFiducials.length];
-        for (int i = 0; i < poseEstimate.rawFiducials.length; i++) {
-            if (poseEstimate.rawFiducials[i] != null) {
-                fiducialIds[i] = poseEstimate.rawFiducials[i].id;
+        var rawFiducials =
+                poseEstimate.rawFiducials == null
+                        ? new LimelightHelpers.RawFiducial[0]
+                        : poseEstimate.rawFiducials;
+        int[] fiducialIds = new int[rawFiducials.length];
+        for (int i = 0; i < rawFiducials.length; i++) {
+            if (rawFiducials[i] != null) {
+                fiducialIds[i] = rawFiducials[i].id;
             }
         }
+        double quality =
+                fiducialIds.length > 1
+                        ? 1.0
+                        : fiducialIds.length == 1 && rawFiducials[0] != null
+                                ? 1.0 - rawFiducials[0].ambiguity
+                                : 0.0;
         return new MegatagPoseEstimate(
                 fieldToRobot,
                 poseEstimate.timestampSeconds,
                 poseEstimate.latency,
                 poseEstimate.avgTagArea,
-                fiducialIds.length > 1 ? 1.0 : 1.0 - poseEstimate.rawFiducials[0].ambiguity,
+                quality,
                 fiducialIds);
     }
 

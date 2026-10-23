@@ -16,9 +16,9 @@ public interface VisionIO {
             public int megatag2Count;
             public int megatagCount;
             public Pose3d pose3d;
-            public double[] standardDeviations =
-                    new double[12]; // [MT1x, MT1y, MT1z, MT1roll, MT1pitch, MT1Yaw, MT2x,
-            // MT2y, MT2z, MT2roll, MT2pitch, MT2yaw]
+            // Limelight 2026 stddevs: [MT1 x,y,z,roll,pitch,yaw, MT2 x,y,z,roll,pitch,yaw].
+            // Empty until the camera publishes a complete, usable estimate.
+            public double[] standardDeviations = new double[0];
         }
 
         public CameraInputs camera = new CameraInputs();

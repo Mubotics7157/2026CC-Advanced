@@ -2,24 +2,14 @@ package frc.robot.subsystems.vision;
 
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
-import frc.robot.RobotState;
 import frc.robot.lib.limelight.LimelightHelpers;
-import java.util.concurrent.atomic.AtomicReference;
 
 /** Hardware implementation of VisionIO using the robot's single Limelight. */
 public class VisionIOHardwareLimelight implements VisionIO {
     private final NetworkTable table =
             NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightTableName);
-    RobotState robotState;
-    AtomicReference<VisionIOInputs> latestInputs = new AtomicReference<>(new VisionIOInputs());
-    int imuMode = 1;
-
-    private static final double[] DEFAULT_STDDEVS =
-            new double[VisionConstants.kExpectedStdDevArrayLength];
-
     /** Creates a new Limelight vision IO instance. */
-    public VisionIOHardwareLimelight(RobotState robotState) {
-        this.robotState = robotState;
+    public VisionIOHardwareLimelight() {
         setLLSettings();
     }
 
@@ -39,7 +29,6 @@ public class VisionIOHardwareLimelight implements VisionIO {
     @Override
     public void updateInputs(VisionIOInputs inputs) {
         readCameraData(table, inputs.camera, VisionConstants.kLimelightTableName);
-        latestInputs.set(inputs);
     }
 
     /** Reads data from a single Limelight camera. */
@@ -52,7 +41,7 @@ public class VisionIOHardwareLimelight implements VisionIO {
         camera.megatag2Count = 0;
         camera.pose3d = null;
         camera.fiducialObservations = new FiducialObservation[0];
-        camera.standardDeviations = DEFAULT_STDDEVS;
+        camera.standardDeviations = new double[0];
         if (camera.seesTarget) {
             try {
                 var megatag = LimelightHelpers.getBotPoseEstimate_wpiBlue(limelightName);
@@ -71,7 +60,7 @@ public class VisionIOHardwareLimelight implements VisionIO {
                 }
 
                 camera.standardDeviations =
-                        table.getEntry("stddevs").getDoubleArray(DEFAULT_STDDEVS);
+                        table.getEntry("stddevs").getDoubleArray(new double[0]);
             } catch (Exception e) {
                 System.err.println("Error processing Limelight data: " + e.getMessage());
             }

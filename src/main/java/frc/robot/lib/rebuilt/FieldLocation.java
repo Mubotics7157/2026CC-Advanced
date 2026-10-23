@@ -5,24 +5,30 @@ import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
 
 /** Alliance-aware Rebuilt pathfinding destinations, derived from the official 2026 tag layout. */
 public enum FieldLocation {
-    LEFT_TRENCH(RebuiltField.leftTrench()),
-    RIGHT_TRENCH(RebuiltField.rightTrench()),
-    DEPOT(RebuiltField.depot()),
-    HUB_NEAR(RebuiltField.tagPose(26)),
-    HUB_FAR(RebuiltField.tagPose(20)),
-    HUB_LEFT(RebuiltField.tagPose(21)),
-    HUB_RIGHT(RebuiltField.tagPose(18)),
-    ALLIANCE_LEFT_CORNER(new Pose2d(0.0, RebuiltField.layout().getFieldWidth(), new Rotation2d())),
-    ALLIANCE_RIGHT_CORNER(new Pose2d());
+    LEFT_TRENCH(RebuiltField.leftTrench(), true, false),
+    RIGHT_TRENCH(RebuiltField.rightTrench(), true, false),
+    DEPOT(RebuiltField.depot(), true, false),
+    HUB_NEAR(RebuiltField.hubStagingPose(26), false, true),
+    HUB_FAR(RebuiltField.hubStagingPose(20), false, true),
+    HUB_LEFT(RebuiltField.hubStagingPose(21), false, true),
+    HUB_RIGHT(RebuiltField.hubStagingPose(18), false, true),
+    ALLIANCE_LEFT_CORNER(
+            new Pose2d(0.0, RebuiltField.layout().getFieldWidth(), new Rotation2d()), false, false),
+    ALLIANCE_RIGHT_CORNER(new Pose2d(), false, false);
 
     private final Pose2d bluePose;
+    private final boolean collectionLocation;
+    private final boolean hubStagingLocation;
 
-    FieldLocation(Pose2d bluePose) {
+    FieldLocation(Pose2d bluePose, boolean collectionLocation, boolean hubStagingLocation) {
         this.bluePose = bluePose;
+        this.collectionLocation = collectionLocation;
+        this.hubStagingLocation = hubStagingLocation;
     }
 
     public Pose2d getPose(boolean isRedAlliance) {
@@ -33,10 +39,21 @@ public enum FieldLocation {
         return bluePose;
     }
 
+    public boolean isCollectionLocation() {
+        return collectionLocation;
+    }
+
+    public boolean isHubStagingLocation() {
+        return hubStagingLocation;
+    }
+
     /** Rebuilt geometry used only for navigation targets; keep mechanism code independent of it. */
     private static final class RebuiltField {
         private static final AprilTagFieldLayout LAYOUT =
                 AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltWelded);
+        private static final Translation2d BLUE_HUB_CENTER =
+                new Translation2d(Units.inchesToMeters(158.6), LAYOUT.getFieldWidth() / 2.0);
+        private static final double HUB_STAGING_RADIUS_METERS = 2.4;
 
         static AprilTagFieldLayout layout() {
             return LAYOUT;
@@ -46,6 +63,19 @@ public enum FieldLocation {
             return LAYOUT.getTagPose(id)
                     .orElseThrow(() -> new IllegalStateException("Missing Rebuilt tag " + id))
                     .toPose2d();
+        }
+
+        /** Returns a collision-safe shooting pose outside the 47 in square Hub perimeter. */
+        static Pose2d hubStagingPose(int tagId) {
+            Translation2d outward = tagPose(tagId).getTranslation().minus(BLUE_HUB_CENTER);
+            if (outward.getNorm() < 1e-6) {
+                throw new IllegalStateException("Rebuilt Hub tag is at the Hub center: " + tagId);
+            }
+
+            Translation2d position =
+                    BLUE_HUB_CENTER.plus(
+                            outward.times(HUB_STAGING_RADIUS_METERS / outward.getNorm()));
+            return new Pose2d(position, BLUE_HUB_CENTER.minus(position).getAngle());
         }
 
         static Pose2d depot() {
