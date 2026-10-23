@@ -24,12 +24,13 @@ public class IntakeIOSim implements IntakeIO {
     public void updateInputs(IntakeIOInputs inputs) {
         rollerSim.update(LOOP_PERIOD);
         armSim.update(LOOP_PERIOD);
-        double armPosition = armSim.getAngularPositionRad();
-        if (armPosition > IntakeConstants.ARM_STOWED_POSITION_RAD) {
-            armPosition = IntakeConstants.ARM_STOWED_POSITION_RAD;
-            armSim.setState(armPosition, 0.0);
-        } else if (armPosition < IntakeConstants.ARM_DEPLOYED_POSITION_RAD) {
-            armPosition = IntakeConstants.ARM_DEPLOYED_POSITION_RAD;
+        double simulatedArmPosition = armSim.getAngularPositionRad();
+        double armPosition =
+                MathUtil.clamp(
+                        simulatedArmPosition,
+                        IntakeConstants.ARM_MIN_POSITION_RAD,
+                        IntakeConstants.ARM_MAX_POSITION_RAD);
+        if (armPosition != simulatedArmPosition) {
             armSim.setState(armPosition, 0.0);
         }
         inputs.rollerPosition = rollerSim.getAngularPositionRad();
@@ -66,8 +67,8 @@ public class IntakeIOSim implements IntakeIO {
         armPositionSetpoint =
                 MathUtil.clamp(
                         positionRad,
-                        IntakeConstants.ARM_DEPLOYED_POSITION_RAD,
-                        IntakeConstants.ARM_STOWED_POSITION_RAD);
+                        IntakeConstants.ARM_MIN_POSITION_RAD,
+                        IntakeConstants.ARM_MAX_POSITION_RAD);
         setArmVoltage((armPositionSetpoint - armSim.getAngularPositionRad()) * 8);
     }
 

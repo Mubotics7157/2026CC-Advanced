@@ -121,8 +121,13 @@ public class IntakeIOReal implements IntakeIO {
 
     @Override
     public void setArmPosition(double positionRad) {
-        armPositionSetpoint = positionRad;
-        armMotor.setControl(armPositionRequest.withPosition(Units.radiansToRotations(positionRad)));
+        armPositionSetpoint =
+                MathUtil.clamp(
+                        positionRad,
+                        IntakeConstants.ARM_MIN_POSITION_RAD,
+                        IntakeConstants.ARM_MAX_POSITION_RAD);
+        armMotor.setControl(
+                armPositionRequest.withPosition(Units.radiansToRotations(armPositionSetpoint)));
     }
 
     @Override
