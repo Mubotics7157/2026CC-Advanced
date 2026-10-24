@@ -17,6 +17,12 @@ public class DriveConstants {
     public static final double kDriveMaxAngularRate = 16.475;
     public static final double kMaxAngularSpeedRadiansPerSecondSquared = 20.0;
 
+    /**
+     * Maximum angular velocity of a swerve module's azimuth pivot, in radians per second. Used by
+     * the {@code SwerveSetpointGenerator} to limit how fast modules can rotate between setpoints.
+     */
+    public static final double kMaxSteerVelocityRadPerSec = 12.0;
+
     public static final double kHeadingControllerP = 5.0;
     public static final double kHeadingControllerI = 0.0;
     public static final double kHeadingControllerD = 0.0;

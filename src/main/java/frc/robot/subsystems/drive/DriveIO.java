@@ -49,4 +49,13 @@ public interface DriveIO {
 
     /** Apply open-loop voltage to the drivetrain's SysId translation request. */
     default void runCharacterization(double volts) {}
+
+    /** Run robot-relative chassis speed control (used for wheel radius characterization). */
+    default void runVelocity(ChassisSpeeds speeds) {}
+
+    /** Get the current gyro rotation (used for characterization). */
+    default Rotation2d getRotation() {
+        return new Rotation2d();
+    }
 }
+

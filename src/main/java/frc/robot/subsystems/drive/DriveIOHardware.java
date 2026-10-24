@@ -41,8 +41,12 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
 
     private final AtomicReference<SwerveDriveState> telemetryCache = new AtomicReference<>();
 
-    private final SwerveRequest.SysIdSwerveTranslation sysIdTranslationRequest =
+        private final SwerveRequest.SysIdSwerveTranslation sysIdTranslationRequest =
             new SwerveRequest.SysIdSwerveTranslation();
+
+    /** Used for wheel-radius / feedforward characterization speed control. */
+    private final SwerveRequest.ApplyRobotSpeeds applySpeedsRequest =
+            new SwerveRequest.ApplyRobotSpeeds();
 
     private final StatusSignal<AngularVelocity> angularPitchVelocity;
     private final StatusSignal<AngularVelocity> angularRollVelocity;
@@ -135,9 +139,20 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
         super.setControl(request);
     }
 
-    @Override
+        @Override
     public void runCharacterization(double volts) {
         setControl(sysIdTranslationRequest.withVolts(edu.wpi.first.units.Units.Volts.of(volts)));
+    }
+
+    @Override
+    public void runVelocity(ChassisSpeeds speeds) {
+        setControl(applySpeedsRequest.withSpeeds(speeds));
+    }
+
+    @Override
+    public Rotation2d getRotation() {
+        SwerveDriveState driveState = telemetryCache.get();
+        return driveState != null ? driveState.Pose.getRotation() : new Rotation2d();
     }
 
     @Override
