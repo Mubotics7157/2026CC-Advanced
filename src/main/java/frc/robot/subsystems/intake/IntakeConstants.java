@@ -16,7 +16,7 @@ public final class IntakeConstants {
     public static final CANBus CAN_BUS = new CANBus("rio");
 
     public static final double ROLLER_GEAR_RATIO = 20 / 12.0;
-    public static final double ARM_GEAR_RATIO = 47.1428571;
+    public static final double ARM_GEAR_RATIO = 50;
 
     // Replace these preliminary positions, gains, and motion constraints after mechanism tuning.
     public static final double ARM_STOWED_POSITION_RAD = 0.0;
