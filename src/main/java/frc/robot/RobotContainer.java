@@ -209,6 +209,8 @@ public class RobotContainer {
                 .onTrue(
                         Commands.runOnce(superstructure::toggleDumbMode)
                                 .withName("Toggle Dumb Mode"));
+
+        controlBoard.getWantStowIntake().onTrue(IntakeFactory.manualStowCommand(superstructure));
     }
 
     public void resetHeading() {

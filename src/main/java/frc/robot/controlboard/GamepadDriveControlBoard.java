@@ -80,4 +80,9 @@ public class GamepadDriveControlBoard implements IDriveControlBoard {
     public Trigger getWantHubPathFind() {
         return controller.povLeft();
     }
+
+    @Override
+    public Trigger getWantStowIntake() {
+        return controller.povDown();
+    }
 }

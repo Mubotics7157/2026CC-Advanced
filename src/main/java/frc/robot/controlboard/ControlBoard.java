@@ -79,4 +79,9 @@ public class ControlBoard implements IDriveControlBoard, IButtonControlBoard {
     public Trigger getWantToAutoAlign() {
         return buttonControlBoard.getWantToAutoAlign();
     }
+
+    @Override
+    public Trigger getWantStowIntake() {
+        return driveControlBoard.getWantStowIntake();
+    }
 }
