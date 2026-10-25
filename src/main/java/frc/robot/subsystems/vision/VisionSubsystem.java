@@ -150,7 +150,37 @@ public class VisionSubsystem extends SubsystemBase {
         // Gyro fusion is only defined for exactly one observed tag.
         if (poseEstimate.fiducialIds().length != 1
                 || !Double.isFinite(poseEstimate.timestampSeconds())
+                || !Double.isFinite(poseEstimate.quality())
+                || poseEstimate.quality() <= 0.0
+                || !Double.isFinite(poseEstimate.fieldToRobot().getX())
+                || !Double.isFinite(poseEstimate.fieldToRobot().getY())
+                || !Double.isFinite(poseEstimate.fieldToRobot().getRotation().getRadians())
+                || !Double.isFinite(poseEstimate.avgTagArea())
+                || poseEstimate.avgTagArea() < VisionConstants.kTagMinAreaForSingleTagMegatag
+                || poseEstimate.fieldToRobot().getTranslation().getNorm()
+                        < VisionConstants.kDefaultNormThreshold
                 || !hasValidStandardDeviations(cam)) {
+            return Optional.empty();
+        }
+
+        if (cam.pose3d == null
+                || !Double.isFinite(cam.pose3d.getZ())
+                || Math.abs(cam.pose3d.getZ()) > VisionConstants.kDefaultZThreshold) {
+            return Optional.empty();
+        }
+
+        if (cam.fiducialObservations != null) {
+            for (var fiducial : cam.fiducialObservations) {
+                if (fiducial == null
+                        || !Double.isFinite(fiducial.ambiguity())
+                        || fiducial.ambiguity() > VisionConstants.kDefaultAmbiguityThreshold) {
+                    return Optional.empty();
+                }
+            }
+        }
+
+        var exclusiveTag = state.getExclusiveTag();
+        if (exclusiveTag.isPresent() && poseEstimate.fiducialIds()[0] != exclusiveTag.get()) {
             return Optional.empty();
         }
 
@@ -194,7 +224,7 @@ public class VisionSubsystem extends SubsystemBase {
 
         double xStd = cam.standardDeviations[VisionConstants.kMegatag1XStdDevIndex];
         double yStd = cam.standardDeviations[VisionConstants.kMegatag1YStdDevIndex];
-        double xyStd = Math.max(xStd, yStd);
+        double xyStd = Math.max(xStd, yStd) / poseEstimate.quality();
 
         return Optional.of(
                 new VisionFieldPoseEstimate(
@@ -230,7 +260,8 @@ public class VisionSubsystem extends SubsystemBase {
         if (poseEstimate.fiducialIds().length < 2) {
             if (cam.fiducialObservations != null) {
                 for (var fiducial : cam.fiducialObservations) {
-                    if (!Double.isFinite(fiducial.ambiguity())
+                    if (fiducial == null
+                            || !Double.isFinite(fiducial.ambiguity())
                             || fiducial.ambiguity() > VisionConstants.kDefaultAmbiguityThreshold) {
                         return Optional.empty();
                     }

@@ -180,6 +180,6 @@ public class VisionIOSimPhoton extends VisionIOHardwareLimelight {
             }
             table.getEntry("cl").setDouble(result.metadata.getLatencyMillis());
         }
-        table.getEntry("tv").setInteger(seesTarget ? 1 : 0);
+        table.getEntry("tv").setDouble(seesTarget ? 1.0 : 0.0);
     }
 }
