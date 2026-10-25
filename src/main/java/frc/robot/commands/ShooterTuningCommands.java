@@ -49,7 +49,9 @@ public final class ShooterTuningCommands {
         List<Double> leftVelocity = new ArrayList<>();
         List<Double> middleVelocity = new ArrayList<>();
         List<Double> rightVelocity = new ArrayList<>();
-        List<Double> appliedVoltage = new ArrayList<>();
+        List<Double> leftAppliedVoltage = new ArrayList<>();
+        List<Double> middleAppliedVoltage = new ArrayList<>();
+        List<Double> rightAppliedVoltage = new ArrayList<>();
 
         Command rampAndSample =
                 Commands.run(
@@ -60,18 +62,16 @@ public final class ShooterTuningCommands {
                                                     Math.max(
                                                             0.0,
                                                             timer.get()
-                                                                    * Math.max(
-                                                                            0.05,
-                                                                            ShooterConstants
-                                                                                    .CHARACTERIZATION_RAMP_VOLTS_PER_SEC
-                                                                                    .get())));
+                                                                    * characterizationRampRate()));
                                     shooter.runVoltage(voltage);
                                     leftVelocity.add(Math.abs(shooter.getLeftVelocityRadPerSec()));
                                     middleVelocity.add(
                                             Math.abs(shooter.getMiddleVelocityRadPerSec()));
                                     rightVelocity.add(
                                             Math.abs(shooter.getRightVelocityRadPerSec()));
-                                    appliedVoltage.add(voltage);
+                                    leftAppliedVoltage.add(shooter.getLeftAppliedVoltage());
+                                    middleAppliedVoltage.add(shooter.getMiddleAppliedVoltage());
+                                    rightAppliedVoltage.add(shooter.getRightAppliedVoltage());
                                 },
                                 shooter,
                                 superstructure)
@@ -79,11 +79,7 @@ public final class ShooterTuningCommands {
                                 () ->
                                         timer.get()
                                                 >= maxCharacterizationVolts()
-                                                        / Math.max(
-                                                                0.05,
-                                                                ShooterConstants
-                                                                        .CHARACTERIZATION_RAMP_VOLTS_PER_SEC
-                                                                        .get()));
+                                                        / characterizationRampRate());
 
         return Commands.sequence(
                         Commands.runOnce(
@@ -91,7 +87,9 @@ public final class ShooterTuningCommands {
                                     leftVelocity.clear();
                                     middleVelocity.clear();
                                     rightVelocity.clear();
-                                    appliedVoltage.clear();
+                                    leftAppliedVoltage.clear();
+                                    middleAppliedVoltage.clear();
+                                    rightAppliedVoltage.clear();
                                     superstructure.setShooterTuningOverride(true);
                                     superstructure.setGoal(Goal.IDLE);
                                     shooter.stop();
@@ -101,21 +99,36 @@ public final class ShooterTuningCommands {
                         Commands.runOnce(timer::restart),
                         rampAndSample)
                 .finallyDo(
-                        () -> {
+                        interrupted -> {
                             shooter.stop();
                             superstructure.setShooterTuningOverride(false);
                             superstructure.setGoal(Goal.IDLE);
-                            printFit("Left", leftVelocity, appliedVoltage);
-                            printFit("Middle", middleVelocity, appliedVoltage);
-                            printFit("Right", rightVelocity, appliedVoltage);
+                            if (!interrupted) {
+                                printFit("Left", leftVelocity, leftAppliedVoltage);
+                                printFit("Middle", middleVelocity, middleAppliedVoltage);
+                                printFit("Right", rightVelocity, rightAppliedVoltage);
+                            } else {
+                                System.out.println(
+                                        "Shooter feedforward characterization interrupted; fit discarded.");
+                            }
                         })
                 .withName("Shooter Tuning: Feedforward Characterization");
     }
 
     private static double maxCharacterizationVolts() {
-        return Math.min(
-                HARD_MAX_CHARACTERIZATION_VOLTS,
-                Math.max(0.0, ShooterConstants.CHARACTERIZATION_MAX_VOLTS.get()));
+        double requestedVolts = ShooterConstants.CHARACTERIZATION_MAX_VOLTS.get();
+        if (!Double.isFinite(requestedVolts)) {
+            return 0.0;
+        }
+        return Math.min(HARD_MAX_CHARACTERIZATION_VOLTS, Math.max(0.0, requestedVolts));
+    }
+
+    private static double characterizationRampRate() {
+        double requestedRate = ShooterConstants.CHARACTERIZATION_RAMP_VOLTS_PER_SEC.get();
+        if (!Double.isFinite(requestedRate)) {
+            return 0.5;
+        }
+        return Math.max(0.05, requestedRate);
     }
 
     private static void printFit(

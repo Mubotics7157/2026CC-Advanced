@@ -38,6 +38,7 @@ public class Robot extends LoggedRobot {
 
     private int loopCount = 0;
     private int disabledLoopCounter = 0;
+    private boolean autonomousCommandPrepared = false;
 
     public Robot() {
         Logger.recordMetadata("ProjectName", BuildConstants.MAVEN_NAME);
@@ -81,7 +82,7 @@ public class Robot extends LoggedRobot {
         SignalLogger.enableAutoLogging(false);
 
         // Warm PathPlanner pathfinding.
-        PathfindingCommand.warmupCommand().schedule();
+        CommandScheduler.getInstance().schedule(PathfindingCommand.warmupCommand());
     }
 
     @Override
@@ -107,7 +108,7 @@ public class Robot extends LoggedRobot {
     @Override
     public void disabledInit() {
         disabledCommand = robotContainer.getDisabledCommand();
-        disabledCommand.schedule();
+        CommandScheduler.getInstance().schedule(disabledCommand);
 
         Pathfinding.ensureInitialized();
         Pathfinding.setTeleopObstacles();
@@ -120,17 +121,21 @@ public class Robot extends LoggedRobot {
                 .accept(PathPlannerTrajectory.makeStayInPlaceTrajectory());
         robotContainer.getAutoModeSelector().invalidateCache();
         disabledLoopCounter = 50;
+        autonomousCommandPrepared = false;
     }
 
     @Override
     public void disabledPeriodic() {
         // File parsing and path construction are done while disabled, never as autonomous begins.
-        if (++disabledLoopCounter < 50
-                || !robotContainer.getAutoModeSelector().haveSelectionsChanged()) {
-            return;
-        }
+        if (++disabledLoopCounter < 50) return;
         disabledLoopCounter = 0;
+        if (!robotContainer.getAutoModeSelector().haveSelectionsChanged()) return;
+        prepareAutonomousCommand();
+    }
+
+    private void prepareAutonomousCommand() {
         autonomousCommand = robotContainer.getAutonomousCommand();
+        autonomousCommandPrepared = true;
         Logger.recordOutput("Auto/RegeneratedCommand", autonomousCommand.getName());
         robotContainer
                 .getAutoModeSelector()
@@ -149,17 +154,18 @@ public class Robot extends LoggedRobot {
 
         robotContainer.getRobotState().setAutoStartTime(Timer.getFPGATimestamp());
 
+        if (!autonomousCommandPrepared
+                || robotContainer.getAutoModeSelector().haveSelectionsChanged()) {
+            prepareAutonomousCommand();
+        }
+
         Optional<Pose2d> startingPose =
                 robotContainer
                         .getAutoModeSelector()
                         .getStartingPose(() -> robotContainer.getRobotState().isRedAlliance());
         startingPose.ifPresent(robotContainer.getDriveSubsystem()::resetOdometry);
 
-        // Usually prebuilt in disabledPeriodic. Build once here as a safe fallback.
-        if (autonomousCommand == null) autonomousCommand = robotContainer.getAutonomousCommand();
-        if (autonomousCommand != null) {
-            autonomousCommand.schedule();
-        }
+        CommandScheduler.getInstance().schedule(autonomousCommand);
     }
 
     @Override

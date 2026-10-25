@@ -12,6 +12,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.auto.AutoModeSelector;
+import frc.robot.commands.DriveCharacterizationCommands;
 import frc.robot.commands.DriveMaintainingHeadingCommand;
 import frc.robot.commands.ShootOnTheMoveCommand;
 import frc.robot.commands.ShooterTuningCommands;
@@ -89,6 +90,14 @@ public class RobotContainer {
         SmartDashboard.putData(
                 "Shooter/Tuning/Feedforward Characterization",
                 ShooterTuningCommands.feedforwardCharacterization(shooter, superstructure));
+        SmartDashboard.putData(
+                "Drive/Characterization/Wheel Radius",
+                DriveCharacterizationCommands.wheelRadiusCharacterization(
+                        driveSubsystem, 4.0, 1.0));
+        SmartDashboard.putData(
+                "Drive/Characterization/Feedforward",
+                DriveCharacterizationCommands.feedforwardCharacterization(
+                        driveSubsystem, 0.5, 6.0));
     }
 
     private DriveSubsystem buildDriveSystem() {
@@ -97,15 +106,15 @@ public class RobotContainer {
                     new DriveIOSim(
                             robotState,
                             simulatedRobotState,
-                            DriveConstants.kDrivetrain.getDriveTrainConstants(),
-                            DriveConstants.kDrivetrain.getModuleConstants()),
+                            DriveConstants.kDrivetrainConstants,
+                            DriveConstants.getModuleConstants()),
                     robotState);
         }
         return new DriveSubsystem(
                 new DriveIOHardware(
                         robotState,
-                        DriveConstants.kDrivetrain.getDriveTrainConstants(),
-                        DriveConstants.kDrivetrain.getModuleConstants()),
+                        DriveConstants.kDrivetrainConstants,
+                        DriveConstants.getModuleConstants()),
                 robotState);
     }
 

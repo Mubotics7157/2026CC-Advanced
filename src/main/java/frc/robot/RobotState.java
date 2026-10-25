@@ -155,8 +155,8 @@ public class RobotState {
     }
 
     /**
-     * Like getPredictedFieldToRobot but caps negative X velocity to zero. Used for non-holonomic
-     * planning.
+     * Like getPredictedFieldToRobot but caps negative robot-relative X velocity to zero. Used for
+     * non-holonomic planning.
      */
     public Pose2d getPredictedCappedFieldToRobot(double lookaheadTimeS) {
         Pose2d pose =
@@ -167,7 +167,7 @@ public class RobotState {
         return pose.exp(
                 new Twist2d(
                         Math.max(0.0, delta.vxMetersPerSecond),
-                        Math.max(0.0, delta.vyMetersPerSecond),
+                        delta.vyMetersPerSecond,
                         delta.omegaRadiansPerSecond));
     }
 
@@ -196,10 +196,10 @@ public class RobotState {
     }
 
     public ChassisSpeeds getLatestFusedRobotRelativeChassisSpeed() {
-        var speeds = getLatestRobotRelativeChassisSpeed();
-        speeds.omegaRadiansPerSecond =
-                getLatestFusedFieldRelativeChassisSpeed().omegaRadiansPerSecond;
-        return speeds;
+        ChassisSpeeds measured = getLatestRobotRelativeChassisSpeed();
+        double fusedOmega = getLatestFusedFieldRelativeChassisSpeed().omegaRadiansPerSecond;
+        return new ChassisSpeeds(
+                measured.vxMetersPerSecond, measured.vyMetersPerSecond, fusedOmega);
     }
 
     private Optional<Double> getMaxAbsValueInRange(

@@ -88,6 +88,9 @@ public final class ShooterConstants {
     public static final double HOOD_SERVO_SETTLE_TIME_SECONDS = 0.25;
 
     public static double hoodAngleToServoPosition(double hoodAngleRad) {
+        if (!Double.isFinite(hoodAngleRad)) {
+            return HOOD_SERVO_MIN_POSITION;
+        }
         double normalizedAngle =
                 MathUtil.inverseInterpolate(HOOD_MIN_ANGLE_RAD, HOOD_MAX_ANGLE_RAD, hoodAngleRad);
         return MathUtil.interpolate(

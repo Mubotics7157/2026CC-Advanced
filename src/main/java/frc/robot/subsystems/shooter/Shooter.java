@@ -190,6 +190,9 @@ public class Shooter extends SubsystemBase {
             manualVoltageOverride = false;
             phase = ControlPhase.DISABLED;
         }
+        if (!Double.isFinite(velocityRadPerSec)) {
+            velocityRadPerSec = 0.0;
+        }
         requestedVelocityRadPerSec =
                 Math.max(
                         0.0,
@@ -222,6 +225,9 @@ public class Shooter extends SubsystemBase {
 
     /** Applies open-loop voltage to all three flywheels until a velocity request or stop occurs. */
     public void runVoltage(double volts) {
+        if (!Double.isFinite(volts)) {
+            volts = 0.0;
+        }
         double maxVolts =
                 Math.min(6.0, Math.max(0.0, ShooterConstants.CHARACTERIZATION_MAX_VOLTS.get()));
         double clampedVolts = Math.max(-maxVolts, Math.min(maxVolts, volts));
@@ -253,6 +259,18 @@ public class Shooter extends SubsystemBase {
 
     public double getRightVelocityRadPerSec() {
         return inputs.rightVelocity;
+    }
+
+    public double getLeftAppliedVoltage() {
+        return inputs.leftVoltage;
+    }
+
+    public double getMiddleAppliedVoltage() {
+        return inputs.middleVoltage;
+    }
+
+    public double getRightAppliedVoltage() {
+        return inputs.rightVoltage;
     }
 
     public double getLeftVelocityRPM() {
