@@ -118,7 +118,6 @@ public class ShooterIOSim implements ShooterIO {
     @Override
     public void stop() {
         velocitySetpoint = 0.0;
-        hoodServoPosition = ShooterConstants.HOOD_SERVO_MIN_POSITION;
         leftAppliedVolts = 0.0;
         middleAppliedVolts = 0.0;
         rightAppliedVolts = 0.0;

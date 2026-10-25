@@ -88,6 +88,9 @@ public class RobotContainer {
                 "Shooter/Tuning/Run At Tunable Setpoint",
                 ShooterTuningCommands.runAtTunableSetpoint(shooter, superstructure));
         SmartDashboard.putData(
+                "Shooter/Hood/Move to Tunable Angle",
+                ShooterTuningCommands.moveHoodToTunableAngle(shooter));
+        SmartDashboard.putData(
                 "Shooter/Tuning/Feedforward Characterization",
                 ShooterTuningCommands.feedforwardCharacterization(shooter, superstructure));
         SmartDashboard.putData(

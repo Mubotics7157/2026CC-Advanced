@@ -195,7 +195,6 @@ public class ShooterIOReal implements ShooterIO {
     @Override
     public void stop() {
         velocitySetpoint = 0.0;
-        setHoodServoPosition(ShooterConstants.HOOD_SERVO_MIN_POSITION);
         leftMotor.stopMotor();
         middleMotor.stopMotor();
         rightMotor.stopMotor();

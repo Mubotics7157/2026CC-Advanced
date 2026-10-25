@@ -42,6 +42,17 @@ public final class ShooterTuningCommands {
                 .withName("Shooter Tuning: Run at Dashboard RPM");
     }
 
+    /** Moves both hoods to the dashboard angle without starting the flywheels. */
+    public static Command moveHoodToTunableAngle(Shooter shooter) {
+        return Commands.runOnce(
+                        () ->
+                                shooter.setHoodAngle(
+                                        Units.degreesToRadians(
+                                                ShooterConstants.TUNING_HOOD_ANGLE_DEG.get())),
+                        shooter)
+                .withName("Shooter Hood: Move to Dashboard Angle");
+    }
+
     /** Ramps all three wheels up to a bounded voltage and prints per-wheel kS/kV fits. */
     public static Command feedforwardCharacterization(
             Shooter shooter, Superstructure superstructure) {
