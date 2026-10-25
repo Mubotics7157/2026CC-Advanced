@@ -1,10 +1,15 @@
 package frc.robot.subsystems.drive;
 
+import static edu.wpi.first.units.Units.Radians;
+import static edu.wpi.first.units.Units.RadiansPerSecond;
+import static edu.wpi.first.units.Units.Seconds;
+import static edu.wpi.first.units.Units.Volts;
 import static frc.robot.subsystems.drive.DriveConstants.*;
 
+import com.ctre.phoenix6.SignalLogger;
+import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.swerve.*;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
-import com.ctre.phoenix6.swerve.SwerveRequest.ApplyRobotSpeeds;
 import com.team254.lib.pathplanner.auto.AutoBuilder;
 import com.team254.lib.pathplanner.config.ModuleConfig;
 import com.team254.lib.pathplanner.config.PIDConstants;
@@ -30,6 +35,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.Threads;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
@@ -49,26 +55,36 @@ import org.littletonrobotics.junction.Logger;
  */
 public class DriveSubsystem extends SubsystemBase {
     /** Drive base radius in meters, calculated from the module positions (furthest module). */
-    public static final double DRIVE_BASE_RADIUS =
-            Math.max(
-                    Math.max(
-                            Math.hypot(
-                                    CompTunerConstants.FrontLeft.LocationX,
-                                    CompTunerConstants.FrontLeft.LocationY),
-                            Math.hypot(
-                                    CompTunerConstants.FrontRight.LocationX,
-                                    CompTunerConstants.FrontRight.LocationY)),
-                    Math.max(
-                            Math.hypot(
-                                    CompTunerConstants.BackLeft.LocationX,
-                                    CompTunerConstants.BackLeft.LocationY),
-                            Math.hypot(
-                                    CompTunerConstants.BackRight.LocationX,
-                                    CompTunerConstants.BackRight.LocationY)));
+    public static final double DRIVE_BASE_RADIUS = kDriveBaseRadiusMeters;
 
     private static final String[] SYSID_MODULE_NAMES = {
         "FrontLeft", "FrontRight", "BackLeft", "BackRight"
     };
+
+    /** Number of modules aggregated for the SysId log motor (the drivetrain has four). */
+    private static final int SYSID_MAX_MODULES = 4;
+
+    /**
+     * Volts-per-second ramp for the quasistatic SysId test. Slower (0.5 V/s) yields a cleaner kS/kV
+     * fit; the WPILib default of 1 V/s is too fast for a 95 lb drivetrain and saturates too quickly
+     * on a competition carpet.
+     */
+    private static final double SYSID_RAMP_VOLTS_PER_SEC = 0.5;
+
+    /** Step voltage used for the dynamic SysId test. */
+    private static final double SYSID_STEP_VOLTS = 6.0;
+
+    /** Hard timeout for every SysId test so a runaway test can never exceed the field. */
+    private static final double SYSID_TIMEOUT_SECONDS = 10.0;
+
+    /**
+     * Time to hold the drivetrain at zero voltage with the modules pointed forward before a SysId
+     * test ramps. {@link com.ctre.phoenix6.swerve.SwerveRequest.SysIdSwerveTranslation} commands
+     * every module to 0 rad, which can take a few hundred milliseconds from a random power-on
+     * angle. Without this dwell, the ramp applies voltage while the wheels are still slewing and
+     * the robot lurches sideways.
+     */
+    private static final double SYSID_STEER_SETTLE_SECONDS = 1.0;
 
     private final DriveIO io;
 
@@ -92,22 +108,16 @@ public class DriveSubsystem extends SubsystemBase {
      */
     private SwerveSetpointGenerator swerveSetpointGenerator;
 
-            /**
+    /**
      * The most recent generated setpoint, fed back in as the "previous" state each loop. Seeded
      * from measured state at startup and reseeded on stop.
      */
-    private volatile SwerveSetpoint prevSetpoint =
-            buildZeroedSetpoint(kDrivetrain.getModuleConstants().length);
-
-    private final ApplyRobotSpeeds stopRequest =
-            new ApplyRobotSpeeds().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+    private volatile SwerveSetpoint prevSetpoint = buildZeroedSetpoint(getModuleConstants().length);
 
     // The SwerveSetpointGenerator already desaturates wheel speeds internally, so we do not ask
     // the request to desaturate again (avoids redundant clipping of the generated setpoint).
-    private final ApplyRobotSpeeds pathplannerAutoRequest =
-            new ApplyRobotSpeeds()
-                    .withDriveRequestType(DriveRequestType.Velocity)
-                    .withDesaturateWheelSpeeds(false);
+    private final GeneratedSetpointRequest generatedSetpointRequest =
+            new GeneratedSetpointRequest(getModuleConstants().length);
 
     public DriveSubsystem(DriveIO io, RobotState robotState) {
         this.io = io;
@@ -118,18 +128,52 @@ public class DriveSubsystem extends SubsystemBase {
         sysId =
                 new SysIdRoutine(
                         new SysIdRoutine.Config(
-                                null,
-                                null,
-                                null,
+                                Volts.of(SYSID_RAMP_VOLTS_PER_SEC).per(Seconds),
+                                Volts.of(SYSID_STEP_VOLTS),
+                                Seconds.of(SYSID_TIMEOUT_SECONDS),
                                 state -> {
-                                    Logger.recordOutput("SysIdTestState", state.toString());
-                                    Logger.recordOutput("Drive/SysIdState", state.toString());
+                                    // SignalLogger produces the .hoot files the SysId tool reads;
+                                    // only run it while a test is active so we don't fill the disk
+                                    // with unrelated data.
+                                    if (state == SysIdRoutineLog.State.kNone) {
+                                        SignalLogger.stop();
+                                    } else {
+                                        SignalLogger.start();
+                                    }
+                                    Logger.recordOutput("Drive/SysId/State", state.toString());
                                 }),
                         new SysIdRoutine.Mechanism(
-                                voltage ->
-                                        io.runCharacterization(
-                                                voltage.in(edu.wpi.first.units.Units.Volts)),
-                                null,
+                                voltage -> io.setDriveOpenLoopVoltage(voltage),
+                                log -> {
+                                    // Log the drive motors under the SysId-standard keys so the AK
+                                    // .wpilog can also be analyzed by SysId (in addition to the
+                                    // CTRE .hoot log).
+                                    SwerveModuleState[] states = inputs.moduleStates;
+                                    double wheelRadius = getWheelRadiusMeters();
+                                    double position = 0.0;
+                                    double velocity = 0.0;
+                                    double appliedVolts = 0.0;
+                                    int n =
+                                            Math.min(
+                                                    Math.min(SYSID_MAX_MODULES, states.length),
+                                                    Math.min(
+                                                            inputs.modulePositions.length,
+                                                            inputs.moduleDriveAppliedVolts.length));
+                                    if (n > 0) {
+                                        for (int i = 0; i < n; i++) {
+                                            position +=
+                                                    inputs.modulePositions[i].distanceMeters
+                                                            / wheelRadius;
+                                            velocity +=
+                                                    states[i].speedMetersPerSecond / wheelRadius;
+                                            appliedVolts += inputs.moduleDriveAppliedVolts[i];
+                                        }
+                                        log.motor("drive")
+                                                .voltage(Volts.of(appliedVolts / n))
+                                                .angularPosition(Radians.of(position / n))
+                                                .angularVelocity(RadiansPerSecond.of(velocity / n));
+                                    }
+                                },
                                 this));
     }
 
@@ -152,7 +196,72 @@ public class DriveSubsystem extends SubsystemBase {
         return new SwerveSetpoint(new ChassisSpeeds(), states, DriveFeedforwards.zeros(numModules));
     }
 
-            /**
+    /** Stop the wheels while keeping their last generated azimuth targets. */
+    private static SwerveSetpoint buildStoppedSetpoint(SwerveSetpoint previous) {
+        SwerveModuleState[] states = new SwerveModuleState[previous.moduleStates().length];
+        for (int i = 0; i < states.length; i++) {
+            states[i] = new SwerveModuleState(0.0, previous.moduleStates()[i].angle);
+        }
+        return new SwerveSetpoint(
+                new ChassisSpeeds(), states, DriveFeedforwards.zeros(states.length));
+    }
+
+    /**
+     * Passes the generator's per-module states directly into Phoenix. Reconstructing them from
+     * chassis speeds loses the previous azimuth choice when a module is stopped and can undo the
+     * generator's steering-rate limit near zero speed.
+     */
+    private static final class GeneratedSetpointRequest implements SwerveRequest {
+        private final SwerveModule.ModuleRequest[] moduleRequests;
+        private volatile SwerveSetpoint setpoint;
+
+        private GeneratedSetpointRequest(int moduleCount) {
+            moduleRequests = new SwerveModule.ModuleRequest[moduleCount];
+            for (int i = 0; i < moduleCount; i++) {
+                moduleRequests[i] =
+                        new SwerveModule.ModuleRequest()
+                                .withDriveRequest(DriveRequestType.Velocity)
+                                .withSteerRequest(SwerveModule.SteerRequestType.Position);
+            }
+            setpoint = buildZeroedSetpoint(moduleCount);
+        }
+
+        private void setSetpoint(SwerveSetpoint newSetpoint) {
+            if (newSetpoint.moduleStates().length != moduleRequests.length
+                    || newSetpoint.feedforwards().robotRelativeForcesXNewtons().length
+                            != moduleRequests.length
+                    || newSetpoint.feedforwards().robotRelativeForcesYNewtons().length
+                            != moduleRequests.length) {
+                throw new IllegalArgumentException(
+                        "Generated swerve setpoint must have one state and force pair per module");
+            }
+            setpoint = newSetpoint;
+        }
+
+        @Override
+        public StatusCode apply(
+                SwerveDrivetrain.SwerveControlParameters parameters,
+                SwerveModule<?, ?, ?>... modulesToApply) {
+            SwerveSetpoint currentSetpoint = setpoint;
+            SwerveModuleState[] states = currentSetpoint.moduleStates();
+            double[] forceX = currentSetpoint.feedforwards().robotRelativeForcesXNewtons();
+            double[] forceY = currentSetpoint.feedforwards().robotRelativeForcesYNewtons();
+
+            for (int i = 0; i < moduleRequests.length; i++) {
+                moduleRequests[i]
+                        .withState(
+                                new SwerveModuleState(
+                                        states[i].speedMetersPerSecond, states[i].angle))
+                        .withUpdatePeriod(parameters.updatePeriod)
+                        .withWheelForceFeedforwardX(forceX[i])
+                        .withWheelForceFeedforwardY(forceY[i]);
+                modulesToApply[i].apply(moduleRequests[i]);
+            }
+            return StatusCode.OK;
+        }
+    }
+
+    /**
      * Snapshot the current measured drivetrain state as a {@link SwerveSetpoint}, used to seed the
      * generator's "previous" state at startup and whenever a trajectory stops. Falls back to the
      * cached {@link #prevSetpoint} if measured states aren't available yet (e.g. at startup or in
@@ -161,11 +270,22 @@ public class DriveSubsystem extends SubsystemBase {
     private SwerveSetpoint getCurrentSetpoint() {
         SwerveModuleState[] measured = inputs.moduleStates;
         ChassisSpeeds speeds = robotState.getLatestRobotRelativeChassisSpeed();
-        int expected = kDrivetrain.getModuleConstants().length;
+        int expected = getModuleConstants().length;
         if (measured == null || measured.length != expected || speeds == null) {
             return prevSetpoint;
         }
-        return new SwerveSetpoint(speeds, measured, DriveFeedforwards.zeros(measured.length));
+        SwerveModuleState[] measuredSnapshot = new SwerveModuleState[measured.length];
+        for (int i = 0; i < measured.length; i++) {
+            measuredSnapshot[i] =
+                    new SwerveModuleState(measured[i].speedMetersPerSecond, measured[i].angle);
+        }
+        return new SwerveSetpoint(
+                new ChassisSpeeds(
+                        speeds.vxMetersPerSecond,
+                        speeds.vyMetersPerSecond,
+                        speeds.omegaRadiansPerSecond),
+                measuredSnapshot,
+                DriveFeedforwards.zeros(measured.length));
     }
 
     private class Controller implements Consumer<PathPlannerTrajectory>, Runnable {
@@ -187,7 +307,13 @@ public class DriveSubsystem extends SubsystemBase {
         }
 
         @Override
-        public void accept(PathPlannerTrajectory t) {
+        public synchronized void accept(PathPlannerTrajectory t) {
+            // A new trajectory may follow manual driving, pathfinding, or a previous path that
+            // ended without stopping. Seed once at the handoff, then chain generated setpoints
+            // while that trajectory remains active.
+            if (t != null) {
+                prevSetpoint = getCurrentSetpoint();
+            }
             trajectory = t;
             timer.reset();
             timer.start();
@@ -195,7 +321,7 @@ public class DriveSubsystem extends SubsystemBase {
         }
 
         @Override
-        public void run() {
+        public synchronized void run() {
             if (!hasSetPriority) {
                 hasSetPriority = Threads.setCurrentThreadPriority(true, 41);
             }
@@ -204,11 +330,11 @@ public class DriveSubsystem extends SubsystemBase {
 
             if (traj == null) return;
 
-                        if (traj.isStayStoppedTrajectory()) {
-                setControl(stopRequest);
-                // Reseed the generator's "previous" state from reality so the next trajectory
-                // ramps from where the robot actually is instead of a stale setpoint.
-                prevSetpoint = getCurrentSetpoint();
+            if (traj.isStayStoppedTrajectory()) {
+                SwerveSetpoint stopped = buildStoppedSetpoint(prevSetpoint);
+                generatedSetpointRequest.setSetpoint(stopped);
+                setControl(generatedSetpointRequest);
+                prevSetpoint = stopped;
                 trajectory = null;
                 return;
             }
@@ -225,7 +351,7 @@ public class DriveSubsystem extends SubsystemBase {
                 return;
             }
 
-                        // Run the controller's desired chassis speeds through the swerve setpoint generator.
+            // Run the controller's desired chassis speeds through the swerve setpoint generator.
             // This enforces the robot's kinematic, friction, and torque limits so the drivetrain
             // accelerates/rotates as fast as physics allows without slipping the wheels, and keeps
             // module rotations within their steer velocity limit.
@@ -239,19 +365,10 @@ public class DriveSubsystem extends SubsystemBase {
                             prevSetpoint, desiredSpeeds, LOOP_PERIOD);
             prevSetpoint = generated;
 
-            // Prefer the setpoint generator's own feedforwards (they account for the torque and
-            // force limits it applied); fall back to the trajectory feedforwards only if the
-            // generator produced none.
-            DriveFeedforwards ff = generated.feedforwards();
-
             Logger.recordOutput("PathPlanner/SetpointSpeeds", generated.robotRelativeSpeeds());
             Logger.recordOutput("PathPlanner/SetpointStates", generated.moduleStates());
-
-            setControl(
-                    pathplannerAutoRequest
-                            .withSpeeds(generated.robotRelativeSpeeds())
-                            .withWheelForceFeedforwardsX(ff.robotRelativeForcesXNewtons())
-                            .withWheelForceFeedforwardsY(ff.robotRelativeForcesYNewtons()));
+            generatedSetpointRequest.setSetpoint(generated);
+            setControl(generatedSetpointRequest);
         }
     }
 
@@ -263,7 +380,7 @@ public class DriveSubsystem extends SubsystemBase {
 
         telemetry.telemeterize(inputs.pose, inputs.odometryPeriod, inputs.moduleStates);
 
-                // Mechanical Advantage-style logs
+        // Mechanical Advantage-style logs
         Logger.recordOutput("Odometry/Robot", inputs.pose);
         logRobotCorners(inputs.pose);
         Logger.recordOutput("SwerveStates/Measured", inputs.moduleStates);
@@ -308,15 +425,15 @@ public class DriveSubsystem extends SubsystemBase {
     private void configurePathPlanner() {
         ModuleConfig moduleConfig =
                 new ModuleConfig(
-                        kDrivetrain.getModuleConstants()[0].WheelRadius,
+                        getModuleConstants()[0].WheelRadius,
                         kDriveMaxSpeed,
                         kWheelCoefficientOfFriction,
                         DCMotor.getKrakenX60Foc(1),
-                        kDrivetrain.getModuleConstants()[0].DriveMotorGearRatio,
-                        kDrivetrain.getModuleConstants()[0].SlipCurrent,
+                        getModuleConstants()[0].DriveMotorGearRatio,
+                        getModuleConstants()[0].SlipCurrent,
                         1);
 
-        var moduleConstants = kDrivetrain.getModuleConstants();
+        var moduleConstants = getModuleConstants();
         robotConfig =
                 new RobotConfig(
                         Constants.kRobotMassKg,
@@ -400,18 +517,25 @@ public class DriveSubsystem extends SubsystemBase {
         return io.applyRequest(requestSupplier, this).withName("Swerve drive request");
     }
 
-    /** Returns a command to run a quasistatic SysId test in the requested direction. */
+    /**
+     * Returns a command to run a quasistatic SysId test in the requested direction.
+     *
+     * <p>The initial zero-voltage, modules-forward dwell ensures all four wheels are aligned and
+     * the drivetrain is stationary before the ramp begins.
+     */
     public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
-        return run(() -> io.runCharacterization(0.0))
-                .withTimeout(1.0)
-                .andThen(sysId.quasistatic(direction));
+        return run(() -> io.setDriveOpenLoopVoltage(Volts.zero()))
+                .withTimeout(SYSID_STEER_SETTLE_SECONDS)
+                .andThen(sysId.quasistatic(direction))
+                .withName("Drive SysId Quasistatic");
     }
 
     /** Returns a command to run a dynamic SysId test in the requested direction. */
     public Command sysIdDynamic(SysIdRoutine.Direction direction) {
-        return run(() -> io.runCharacterization(0.0))
-                .withTimeout(1.0)
-                .andThen(sysId.dynamic(direction));
+        return run(() -> io.setDriveOpenLoopVoltage(Volts.zero()))
+                .withTimeout(SYSID_STEER_SETTLE_SECONDS)
+                .andThen(sysId.dynamic(direction))
+                .withName("Drive SysId Dynamic");
     }
 
     public void addVisionMeasurement(VisionFieldPoseEstimate visionFieldPoseEstimate) {
@@ -430,7 +554,7 @@ public class DriveSubsystem extends SubsystemBase {
         setStateStdDevs(kEnabledDriveXStdDev, kEnabledDriveYStdDev, kEnabledDriveRotStdDev);
     }
 
-        public MapleSimSwerveDrivetrain getMapleSimDrive() {
+    public MapleSimSwerveDrivetrain getMapleSimDrive() {
         if (io instanceof DriveIOSim) {
             return ((DriveIOSim) io).getMapleSimDrive();
         }
@@ -439,7 +563,7 @@ public class DriveSubsystem extends SubsystemBase {
 
     // --- Robot corner visualization (AdvantageScope) ---
 
-        /** Pre-computed constant corner offsets (never change), in CCW order starting front-left. */
+    /** Pre-computed constant corner offsets (never change), in CCW order starting front-left. */
     private static final double HALF_LENGTH = Units.inchesToMeters(kBumperLengthInches / 2.0);
 
     private static final double HALF_WIDTH = Units.inchesToMeters(kBumperWidthInches / 2.0);
@@ -471,12 +595,12 @@ public class DriveSubsystem extends SubsystemBase {
 
     /** Run open-loop voltage control for SysId characterization. */
     public void runCharacterization(double volts) {
-        io.runCharacterization(volts);
+        io.setDriveOpenLoopVoltage(Volts.of(volts));
     }
 
     /** Run robot-relative chassis speed control (used for wheel radius characterization). */
     public void runVelocity(ChassisSpeeds speeds) {
-        io.runVelocity(speeds);
+        io.setDriveVelocity(speeds);
     }
 
     /** Get the gyro rotation (used for characterization). */
@@ -484,23 +608,45 @@ public class DriveSubsystem extends SubsystemBase {
         return io.getRotation();
     }
 
-    /** Get each module's wheel position in radians (used for wheel radius characterization). */
+    /**
+     * @return The nominal wheel radius configured in Tuner X, in meters.
+     */
+    public double getWheelRadiusMeters() {
+        return getModuleConstants()[0].WheelRadius;
+    }
+
+    /**
+     * @return The distance from the robot center to the furthest swerve module, in meters.
+     */
+    public double getDriveBaseRadiusMeters() {
+        return DRIVE_BASE_RADIUS;
+    }
+
+    /** Get each module's drive-axle angle in radians (used for wheel radius characterization). */
     public double[] getWheelRadiusCharacterizationPositions() {
-        double[] values = new double[4];
-        double wheelRadius = CompTunerConstants.FrontLeft.WheelRadius;
-        for (int i = 0; i < 4 && i < inputs.modulePositions.length; i++) {
-            values[i] = inputs.modulePositions[i].distanceMeters / wheelRadius;
-        }
-        return values;
+        return io.getWheelRadiusCharacterizationPositions();
+    }
+
+    /** Returns measured azimuth velocities for wheel-radius characterization settling. */
+    public double[] getModuleSteerVelocitiesRadPerSec() {
+        return io.getModuleSteerVelocitiesRadPerSec();
     }
 
     /** Get the average wheel velocity in rad/s (used for feedforward characterization). */
     public double getFFCharacterizationVelocity() {
-        double output = 0.0;
-        double wheelRadius = CompTunerConstants.FrontLeft.WheelRadius;
-        for (int i = 0; i < 4 && i < inputs.moduleStates.length; i++) {
-            output += inputs.moduleStates[i].speedMetersPerSecond / wheelRadius / 4.0;
+        return io.getFFCharacterizationVelocity();
+    }
+
+    /** Average measured drive motor voltage, aligned with the latest measured module speeds. */
+    public double getAverageDriveAppliedVoltage() {
+        double[] voltages = inputs.moduleDriveAppliedVolts;
+        if (voltages.length == 0) {
+            return 0.0;
         }
-        return output;
+        double sum = 0.0;
+        for (double voltage : voltages) {
+            sum += voltage;
+        }
+        return sum / voltages.length;
     }
 }

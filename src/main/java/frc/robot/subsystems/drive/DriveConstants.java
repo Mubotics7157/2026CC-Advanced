@@ -1,20 +1,52 @@
 package frc.robot.subsystems.drive;
 
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Transform2d;
-import edu.wpi.first.math.geometry.Translation2d;
+import static edu.wpi.first.units.Units.MetersPerSecond;
+
+import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
+import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import edu.wpi.first.wpilibj.RobotBase;
 import frc.robot.Constants;
 
 public class DriveConstants {
-    public static final Transform2d kDriveToCoralOffset =
-            new Transform2d(new Translation2d(0.66, 0.0), Rotation2d.kZero);
+    private static final boolean kUsePracticeConfiguration =
+            !RobotBase.isSimulation() && Constants.kIsPracticeBot;
 
-    public static final double kDriveMaxSpeed = 6.14;
+    /** Selected Tuner X configuration values; these do not construct a drivetrain instance. */
+    public static final SwerveDrivetrainConstants kDrivetrainConstants =
+            kUsePracticeConfiguration
+                    ? PracTunerConstants.DrivetrainConstants
+                    : CompTunerConstants.DrivetrainConstants;
+
+    private static final SwerveModuleConstants<?, ?, ?>[] kSelectedModuleConstants =
+            kUsePracticeConfiguration
+                    ? new SwerveModuleConstants<?, ?, ?>[] {
+                        PracTunerConstants.FrontLeft,
+                        PracTunerConstants.FrontRight,
+                        PracTunerConstants.BackLeft,
+                        PracTunerConstants.BackRight
+                    }
+                    : new SwerveModuleConstants<?, ?, ?>[] {
+                        CompTunerConstants.FrontLeft,
+                        CompTunerConstants.FrontRight,
+                        CompTunerConstants.BackLeft,
+                        CompTunerConstants.BackRight
+                    };
+
+    /** Returns the selected module constants without exposing the backing array. */
+    public static SwerveModuleConstants<?, ?, ?>[] getModuleConstants() {
+        return kSelectedModuleConstants.clone();
+    }
+
+    /** Maximum wheel speed at 12 V from the active 2026 Tuner X configuration. */
+    public static final double kDriveMaxSpeed =
+            (kUsePracticeConfiguration
+                            ? PracTunerConstants.kSpeedAt12Volts
+                            : CompTunerConstants.kSpeedAt12Volts)
+                    .in(MetersPerSecond);
+
     public static final double kMaxAccelerationMetersPerSecondSquared = 10.0;
     public static final double kMaxXAccelerationMetersPerSecondSquared = 10.0;
     public static final double kMaxYAccelerationMetersPerSecondSquared = 10.0;
-    public static final double kDriveMaxAngularRate = 16.475;
     public static final double kMaxAngularSpeedRadiansPerSecondSquared = 20.0;
 
     /**
@@ -27,15 +59,24 @@ public class DriveConstants {
     public static final double kHeadingControllerI = 0.0;
     public static final double kHeadingControllerD = 0.0;
 
-    public static final CommandSwerveDrivetrain kDrivetrain =
-            RobotBase.isSimulation()
-                    ? CompTunerConstants.createDrivetrain()
-                    : (Constants.kIsPracticeBot
-                            ? PracTunerConstants.createDrivetrain()
-                            : CompTunerConstants.createDrivetrain());
+    /** Furthest module radius from the robot center, derived from the active module layout. */
+    public static final double kDriveBaseRadiusMeters = calculateDriveBaseRadiusMeters();
+
+    /** Maximum chassis yaw rate when every module reaches its configured maximum wheel speed. */
+    public static final double kDriveMaxAngularRate = kDriveMaxSpeed / kDriveBaseRadiusMeters;
+
+    private static double calculateDriveBaseRadiusMeters() {
+        double radius = 0.0;
+        for (var module : kSelectedModuleConstants) {
+            radius = Math.max(radius, Math.hypot(module.LocationX, module.LocationY));
+        }
+        return radius;
+    }
 
     // Used by MapleSim configuration
-    public static final double kRobotWeightPounds = 95.6;
+    public static final double kRobotWeightPounds =
+            edu.wpi.first.units.Units.Kilograms.of(Constants.kRobotMassKg)
+                    .in(edu.wpi.first.units.Units.Pounds);
     public static final double kBumperLengthInches = 34.5;
     public static final double kBumperWidthInches = 32.5;
     public static final double kWheelCoefficientOfFriction = 1.48;

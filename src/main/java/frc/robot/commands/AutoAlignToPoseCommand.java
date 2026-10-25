@@ -14,6 +14,7 @@ import frc.robot.RobotState;
 import frc.robot.lib.util.MathHelpers;
 import frc.robot.subsystems.drive.DriveConstants;
 import frc.robot.subsystems.drive.DriveSubsystem;
+import java.util.Objects;
 import org.littletonrobotics.junction.Logger;
 
 public class AutoAlignToPoseCommand extends Command {
@@ -39,8 +40,11 @@ public class AutoAlignToPoseCommand extends Command {
             RobotState robotState,
             Pose2d targetLocation,
             double constraintFactor) {
+        if (!Double.isFinite(constraintFactor) || constraintFactor <= 0.0) {
+            throw new IllegalArgumentException("constraintFactor must be finite and positive");
+        }
         this.driveSubsystem = driveSubsystem;
-        this.targetLocation = targetLocation;
+        this.targetLocation = Objects.requireNonNull(targetLocation, "targetLocation");
         this.robotState = robotState;
         this.driveController =
                 new ProfiledPIDController(
@@ -149,7 +153,6 @@ public class AutoAlignToPoseCommand extends Command {
 
     @Override
     public boolean isFinished() {
-        return targetLocation.equals(null)
-                || (driveController.atGoal() && thetaController.atGoal());
+        return driveController.atGoal() && thetaController.atGoal();
     }
 }
