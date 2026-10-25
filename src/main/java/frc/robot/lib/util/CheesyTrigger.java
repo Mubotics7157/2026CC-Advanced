@@ -63,7 +63,7 @@ public class CheesyTrigger extends Trigger {
         addBinding(
                 (previous, current) -> {
                     if (!previous && current) {
-                        command.schedule();
+                        CommandScheduler.getInstance().schedule(command);
                         shouldBeRunning = true;
                     } else if (previous && !current) {
                         command.cancel();
@@ -71,7 +71,7 @@ public class CheesyTrigger extends Trigger {
                     }
                     if (current && shouldBeRunning && !command.isScheduled()) {
                         // Try again!
-                        command.schedule();
+                        CommandScheduler.getInstance().schedule(command);
                     }
                 });
         return this;

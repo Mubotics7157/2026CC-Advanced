@@ -7,6 +7,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
+import frc.robot.subsystems.drive.DriveConstants;
 
 /** Alliance-aware Rebuilt pathfinding destinations, derived from the official 2026 tag layout. */
 public enum FieldLocation {
@@ -17,9 +18,8 @@ public enum FieldLocation {
     HUB_FAR(RebuiltField.hubStagingPose(20), false, true),
     HUB_LEFT(RebuiltField.hubStagingPose(21), false, true),
     HUB_RIGHT(RebuiltField.hubStagingPose(18), false, true),
-    ALLIANCE_LEFT_CORNER(
-            new Pose2d(0.0, RebuiltField.layout().getFieldWidth(), new Rotation2d()), false, false),
-    ALLIANCE_RIGHT_CORNER(new Pose2d(), false, false);
+    ALLIANCE_LEFT_CORNER(RebuiltField.leftCorner(), false, false),
+    ALLIANCE_RIGHT_CORNER(RebuiltField.rightCorner(), false, false);
 
     private final Pose2d bluePose;
     private final boolean collectionLocation;
@@ -54,6 +54,12 @@ public enum FieldLocation {
         private static final Translation2d BLUE_HUB_CENTER =
                 new Translation2d(Units.inchesToMeters(158.6), LAYOUT.getFieldWidth() / 2.0);
         private static final double HUB_STAGING_RADIUS_METERS = 2.4;
+        // Keep the entire bumper inside the field at every corner target orientation.
+        private static final double CORNER_STANDOFF_METERS =
+                Math.hypot(
+                                Units.inchesToMeters(DriveConstants.kBumperLengthInches / 2.0),
+                                Units.inchesToMeters(DriveConstants.kBumperWidthInches / 2.0))
+                        + Units.inchesToMeters(2.0);
 
         static AprilTagFieldLayout layout() {
             return LAYOUT;
@@ -83,6 +89,17 @@ public enum FieldLocation {
                     Units.inchesToMeters(27.0),
                     LAYOUT.getFieldWidth() / 2.0 + Units.inchesToMeters(75.93),
                     Rotation2d.kPi);
+        }
+
+        static Pose2d leftCorner() {
+            return new Pose2d(
+                    CORNER_STANDOFF_METERS,
+                    LAYOUT.getFieldWidth() - CORNER_STANDOFF_METERS,
+                    Rotation2d.kZero);
+        }
+
+        static Pose2d rightCorner() {
+            return new Pose2d(CORNER_STANDOFF_METERS, CORNER_STANDOFF_METERS, Rotation2d.kZero);
         }
 
         static Pose2d leftTrench() {

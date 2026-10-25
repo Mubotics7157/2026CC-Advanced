@@ -1,6 +1,7 @@
 package frc.robot.lib.subsystems;
 
 import com.ctre.phoenix6.BaseStatusSignal;
+import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.*;
 import com.ctre.phoenix6.controls.*;
@@ -42,7 +43,10 @@ public class TalonFXIO implements MotorIO {
 
     public TalonFXIO(ServoMotorSubsystemConfig config) {
         this.config = config;
-        talon = new TalonFX(config.talonCANID.getDeviceNumber(), config.talonCANID.getBus());
+        talon =
+                new TalonFX(
+                        config.talonCANID.getDeviceNumber(),
+                        new CANBus(config.talonCANID.getBus()));
 
         // Current limits and ramp rates do not perform well in sim.
         if (Robot.isSimulation()) {
