@@ -190,17 +190,7 @@ public class RobotContainer {
                                 robotState::isRedAlliance,
                                 controlBoard::getThrottle,
                                 controlBoard::getStrafe));
-        // controlBoard.getWantIntake().whileTrue(IntakeFactory.setIntakingCommand(superstructure));
-        // controlBoard.getWantOuttake().whileTrue(IntakeFactory.setOuttakingCommand(superstructure));
-        // controlBoard
-        //         .getWantShoot()
-        //         .whileTrue(
-        //                 new ShootOnTheMoveCommand(
-        //                         driveSubsystem,
-        //                         robotState,
-        //                         superstructure,
-        //                         controlBoard::getThrottle,
-        //                         controlBoard::getStrafe));
+                                
         controlBoard.getWantIntake().whileTrue(IntakeFactory.setIntakingCommand(superstructure));
         controlBoard.getWantOuttake().whileTrue(IntakeFactory.setOuttakingCommand(superstructure));
         controlBoard
