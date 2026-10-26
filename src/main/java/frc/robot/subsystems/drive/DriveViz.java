@@ -14,6 +14,7 @@ import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
 import frc.robot.Robot;
 import frc.robot.lib.util.MathHelpers;
+import java.util.List;
 import org.littletonrobotics.junction.Logger;
 
 public class DriveViz {
@@ -29,6 +30,13 @@ public class DriveViz {
     public DriveViz(double maxSpeed) {
         MaxSpeed = maxSpeed;
         SmartDashboard.putData("Field", field);
+    }
+
+    /** Show the currently selected/followed route on the WPILib field widget. */
+    public void setActivePath(List<Pose2d> poses) {
+        Pose2d[] pathPoses = poses.toArray(new Pose2d[0]);
+        field.getObject("Active Path").setPoses(pathPoses);
+        Logger.recordOutput("Drive/Viz/ActivePath", pathPoses);
     }
 
     /* Keep a reference of the last pose to calculate the speeds */
@@ -108,13 +116,15 @@ public class DriveViz {
         double currentTime = Logger.getTimestamp();
         double diffTime = currentTime - lastTime;
         lastTime = currentTime;
-        Translation2d distanceDiff = pose.minus(lastPose).getTranslation();
-        lastPose = pose;
-        Translation2d velocities = distanceDiff.div(diffTime);
+        if (diffTime > 0.0) {
+            Translation2d distanceDiff = pose.minus(lastPose).getTranslation();
+            lastPose = pose;
+            Translation2d velocities = distanceDiff.div(diffTime);
 
-        Logger.recordOutput("Drive/Viz/Speed", velocities.getNorm());
-        Logger.recordOutput("Drive/Viz/VelocityX", velocities.getX());
-        Logger.recordOutput("Drive/Viz/VelocityY", velocities.getY());
+            Logger.recordOutput("Drive/Viz/Speed", velocities.getNorm());
+            Logger.recordOutput("Drive/Viz/VelocityX", velocities.getX());
+            Logger.recordOutput("Drive/Viz/VelocityY", velocities.getY());
+        }
         Logger.recordOutput("Drive/Viz/OdomPeriod", odometryPeriod);
         Logger.recordOutput("Drive/Viz/ModuleStatesCurrent", moduleStates);
 

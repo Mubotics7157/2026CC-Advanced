@@ -8,7 +8,6 @@ import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.Units;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
-import edu.wpi.first.wpilibj.Timer;
 import frc.robot.Constants;
 import frc.robot.RobotState;
 import frc.robot.simulation.SimulatedRobotState;
@@ -22,26 +21,13 @@ import java.util.function.Consumer;
  */
 public class DriveIOSim extends DriveIOHardware {
 
-    private SimulatedRobotState simRobotState = null;
+    private final SimulatedRobotState simRobotState;
     private static final double kSimLoopPeriod = 0.005; // 5 ms
-    private Notifier simNotifier = null;
+    private Notifier simNotifier;
     private double lastSimTime;
-    public MapleSimSwerveDrivetrain mapleSimSwerveDrivetrain = null;
+    private MapleSimSwerveDrivetrain mapleSimSwerveDrivetrain;
 
-    Consumer<SwerveDriveState> simTelemetryConsumer =
-            swerveDriveState -> {
-                // Protect at init
-                if (simRobotState == null) {
-                    return;
-                }
-
-                if (Constants.useMapleSim && mapleSimSwerveDrivetrain != null) {
-                    swerveDriveState.Pose =
-                            mapleSimSwerveDrivetrain.mapleSimDrive.getSimulatedDriveTrainPose();
-                }
-                simRobotState.addFieldToRobot(swerveDriveState.Pose);
-                telemetryConsumer_.accept(swerveDriveState);
-            };
+    private final Consumer<SwerveDriveState> simTelemetryConsumer;
 
     public DriveIOSim(
             RobotState robotState,
@@ -50,14 +36,24 @@ public class DriveIOSim extends DriveIOHardware {
             @SuppressWarnings("rawtypes") SwerveModuleConstants... modules) {
         super(robotState, driveTrainConstants, modules);
         this.simRobotState = simRobotState;
+        simTelemetryConsumer =
+                swerveDriveState -> {
+                    var simulatedState = swerveDriveState.clone();
+                    if (Constants.useMapleSim && mapleSimSwerveDrivetrain != null) {
+                        simulatedState.Pose =
+                                mapleSimSwerveDrivetrain.mapleSimDrive.getSimulatedDriveTrainPose();
+                    }
+                    this.simRobotState.addFieldToRobot(simulatedState.Pose);
+                    telemetryConsumer_.accept(simulatedState);
+                };
 
         // Rewrite the telemetry consumer with a consumer for sim
         registerTelemetry(simTelemetryConsumer);
-        startSimThread();
+        startSimThread(modules);
     }
 
     @SuppressWarnings("unchecked")
-    public void startSimThread() {
+    private void startSimThread(@SuppressWarnings("rawtypes") SwerveModuleConstants... modules) {
         if (Constants.useMapleSim) {
             mapleSimSwerveDrivetrain =
                     new MapleSimSwerveDrivetrain(
@@ -71,10 +67,7 @@ public class DriveIOSim extends DriveIOHardware {
                             getModuleLocations(),
                             getPigeon2(),
                             getModules(),
-                            CompTunerConstants.FrontLeft,
-                            CompTunerConstants.FrontRight,
-                            CompTunerConstants.BackLeft,
-                            CompTunerConstants.BackRight);
+                            modules);
             simNotifier = new Notifier(mapleSimSwerveDrivetrain::update);
         } else {
             lastSimTime = Utils.getCurrentTimeSeconds();
@@ -90,10 +83,10 @@ public class DriveIOSim extends DriveIOHardware {
         simNotifier.startPeriodic(kSimLoopPeriod);
     }
 
+    @Override
     public void resetOdometry(Pose2d pose) {
         if (Constants.useMapleSim && mapleSimSwerveDrivetrain != null) {
             mapleSimSwerveDrivetrain.mapleSimDrive.setSimulationWorldPose(pose);
-            Timer.delay(0.05);
         }
         super.resetOdometry(pose);
     }

@@ -25,7 +25,7 @@ public final class AutoFactory {
         return new ChezySequenceCommandGroup(
                 new InstantCommand(
                         () -> PPHolonomicDriveController.setControlPoint(Transform2d.kZero)),
-                new PathfindingAutoAlignCommand(drive, state, target, red));
+                PathfindingAutoAlignCommand.create(drive, target, red));
     }
 
     public static Command pathfindTo(
@@ -38,7 +38,7 @@ public final class AutoFactory {
         return new ChezySequenceCommandGroup(
                 new InstantCommand(
                         () -> PPHolonomicDriveController.setControlPoint(Transform2d.kZero)),
-                new PathfindingAutoAlignCommand(drive, state, target, red, throttle, strafe));
+                PathfindingAutoAlignCommand.create(drive, target, red, throttle, strafe));
     }
 
     public static Command getPathfindToDepotCommand(

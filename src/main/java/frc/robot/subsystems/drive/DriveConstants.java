@@ -6,6 +6,7 @@ import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import edu.wpi.first.wpilibj.RobotBase;
 import frc.robot.Constants;
+import frc.robot.utils.simulations.MapleSimSwerveDrivetrain;
 
 public class DriveConstants {
     private static final boolean kUsePracticeConfiguration =
@@ -34,7 +35,11 @@ public class DriveConstants {
 
     /** Returns the selected module constants without exposing the backing array. */
     public static SwerveModuleConstants<?, ?, ?>[] getModuleConstants() {
-        return kSelectedModuleConstants.clone();
+        SwerveModuleConstants<?, ?, ?>[] modules = kSelectedModuleConstants.clone();
+        if (RobotBase.isSimulation() && Constants.useMapleSim) {
+            return MapleSimSwerveDrivetrain.regulateModuleConstantsForSimulation(modules);
+        }
+        return modules;
     }
 
     /** Maximum wheel speed at 12 V from the active 2026 Tuner X configuration. */

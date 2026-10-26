@@ -265,7 +265,7 @@ public final class ModularAutoBuilder {
 
     private Command buildPathfindIntake(FieldLocation location) {
         Command driveCommand =
-                new PathfindingAutoAlignCommand(drive, robotState, () -> location, isRedAlliance);
+                PathfindingAutoAlignCommand.create(drive, () -> location, isRedAlliance);
         return Commands.deadline(
                         driveCommand,
                         superstructure.run(() -> superstructure.setGoal(Goal.INTAKING)))

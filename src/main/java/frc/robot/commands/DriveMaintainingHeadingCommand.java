@@ -2,6 +2,7 @@ package frc.robot.commands;
 
 import com.ctre.phoenix6.swerve.SwerveModule;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -44,6 +45,18 @@ public class DriveMaintainingHeadingCommand extends Command {
     private final DoubleSupplier mThrottleSupplier;
     private final DoubleSupplier mStrafeSupplier;
     private final DoubleSupplier mTurnSupplier;
+    private final SlewRateLimiter throttleLimiter =
+            new SlewRateLimiter(
+                    DriveConstants.kMaxXAccelerationMetersPerSecondSquared
+                            / DriveConstants.kDriveMaxSpeed);
+    private final SlewRateLimiter strafeLimiter =
+            new SlewRateLimiter(
+                    DriveConstants.kMaxYAccelerationMetersPerSecondSquared
+                            / DriveConstants.kDriveMaxSpeed);
+    private final SlewRateLimiter turnLimiter =
+            new SlewRateLimiter(
+                    DriveConstants.kMaxAngularSpeedRadiansPerSecondSquared
+                            / DriveConstants.kDriveMaxAngularRate);
     private Optional<Rotation2d> mHeadingSetpoint = Optional.empty();
     private double mJoystickLastTouched = -1;
 
@@ -62,13 +75,20 @@ public class DriveMaintainingHeadingCommand extends Command {
     @Override
     public void initialize() {
         mHeadingSetpoint = Optional.empty();
+        throttleLimiter.reset(0.0);
+        strafeLimiter.reset(0.0);
+        turnLimiter.reset(0.0);
     }
 
     @Override
     public void execute() {
-        double throttle = mThrottleSupplier.getAsDouble() * DriveConstants.kDriveMaxSpeed;
-        double strafe = mStrafeSupplier.getAsDouble() * DriveConstants.kDriveMaxSpeed;
-        double turnFieldFrame = mTurnSupplier.getAsDouble();
+        double throttle =
+                throttleLimiter.calculate(mThrottleSupplier.getAsDouble())
+                        * DriveConstants.kDriveMaxSpeed;
+        double strafe =
+                strafeLimiter.calculate(mStrafeSupplier.getAsDouble())
+                        * DriveConstants.kDriveMaxSpeed;
+        double turnFieldFrame = turnLimiter.calculate(mTurnSupplier.getAsDouble());
         double throttleFieldFrame = mRobotState.isRedAlliance() ? -throttle : throttle;
         double strafeFieldFrame = mRobotState.isRedAlliance() ? -strafe : strafe;
         if (Math.abs(turnFieldFrame) > Constants.kSteerJoystickDeadband) {

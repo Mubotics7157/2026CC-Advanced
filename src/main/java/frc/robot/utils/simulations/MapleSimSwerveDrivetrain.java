@@ -85,6 +85,10 @@ public class MapleSimSwerveDrivetrain {
                                     CANcoderConfiguration>...
                             moduleConstants) {
         this.pigeonSim = pigeon.getSimState();
+        if (moduleConstants.length != modules.length) {
+            throw new IllegalArgumentException(
+                    "MapleSim requires one module constant set per swerve module");
+        }
         simModules = new SimSwerveModule[moduleConstants.length];
 
         // IMPORTANT: Must override simulation timings BEFORE creating any swerve module simulations
@@ -113,7 +117,7 @@ public class MapleSimSwerveDrivetrain {
         SwerveModuleSimulation[] moduleSimulations = mapleSimDrive.getModules();
         for (int i = 0; i < this.simModules.length; i++)
             simModules[i] =
-                    new SimSwerveModule(moduleConstants[0], moduleSimulations[i], modules[i]);
+                    new SimSwerveModule(moduleConstants[i], moduleSimulations[i], modules[i]);
 
         SimulatedArena.getInstance().addDriveTrainSimulation(mapleSimDrive);
     }

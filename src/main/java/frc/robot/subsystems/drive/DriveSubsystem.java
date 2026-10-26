@@ -491,6 +491,7 @@ public class DriveSubsystem extends SubsystemBase {
                     Logger.recordOutput("Odometry/Trajectory", activePath.toArray(new Pose2d[0]));
                     Logger.recordOutput(
                             "PathPlanner/activePath", activePath.toArray(new Pose2d[0]));
+                    telemetry.setActivePath(activePath);
                 });
 
         PathPlannerLogging.setLogTargetChassisSpeedsCallback(
