@@ -31,6 +31,7 @@ public class AutoModeSelector {
         SYSID_DYNAMIC_REVERSE,
         PATHPLANNER_AUTO,
         CHOREO_PATH,
+        MODULAR_AUTO,
         ADAPTIVE_ROUTE,
         PATHFIND_TO_LOCATION
     }
@@ -50,6 +51,16 @@ public class AutoModeSelector {
             new LoggedDashboardChooser<>("Auto/Adaptive/SecondTarget");
     private final LoggedDashboardChooser<FieldLocation> adaptiveThirdChooser =
             new LoggedDashboardChooser<>("Auto/Adaptive/ThirdTarget");
+    private final LoggedDashboardChooser<ModularAutoBuilder.StartSide> modularStartChooser =
+            new LoggedDashboardChooser<>("Auto/Modular/StartSide");
+    private final LoggedDashboardChooser<ModularAutoBuilder.IntakeLocation>
+            modularFirstIntakeChooser = new LoggedDashboardChooser<>("Auto/Modular/FirstIntake");
+    private final LoggedDashboardChooser<ModularAutoBuilder.ShootPosition>
+            modularFirstShootChooser = new LoggedDashboardChooser<>("Auto/Modular/FirstShoot");
+    private final LoggedDashboardChooser<ModularAutoBuilder.IntakeLocation>
+            modularSecondIntakeChooser = new LoggedDashboardChooser<>("Auto/Modular/SecondIntake");
+    private final LoggedDashboardChooser<ModularAutoBuilder.ShootPosition>
+            modularSecondShootChooser = new LoggedDashboardChooser<>("Auto/Modular/SecondShoot");
     private DesiredMode lastMode;
     private String lastPath;
     private String lastChoreo;
@@ -57,11 +68,17 @@ public class AutoModeSelector {
     private FieldLocation lastAdaptiveFirst;
     private FieldLocation lastAdaptiveSecond;
     private FieldLocation lastAdaptiveThird;
+    private ModularAutoBuilder.StartSide lastModularStart;
+    private ModularAutoBuilder.IntakeLocation lastModularFirstIntake;
+    private ModularAutoBuilder.ShootPosition lastModularFirstShoot;
+    private ModularAutoBuilder.IntakeLocation lastModularSecondIntake;
+    private ModularAutoBuilder.ShootPosition lastModularSecondShoot;
     private Optional<DriverStation.Alliance> lastAlliance = Optional.empty();
 
     public AutoModeSelector(RobotContainer container) {
         this.container = container;
-        modeChooser.addDefaultOption("Do Nothing", DesiredMode.DO_NOTHING);
+        modeChooser.addDefaultOption("Modular Two Cycle Auto", DesiredMode.MODULAR_AUTO);
+        modeChooser.addOption("Do Nothing", DesiredMode.DO_NOTHING);
         modeChooser.addOption(
                 "Drive SysId (Quasistatic Forward)", DesiredMode.SYSID_QUASISTATIC_FORWARD);
         modeChooser.addOption(
@@ -81,6 +98,50 @@ public class AutoModeSelector {
         configureLocationChooser(adaptiveFirstChooser, FieldLocation.DEPOT);
         configureLocationChooser(adaptiveSecondChooser, FieldLocation.HUB_NEAR);
         configureLocationChooser(adaptiveThirdChooser, FieldLocation.DEPOT);
+        configureModularChoosers();
+    }
+
+    private void configureModularChoosers() {
+        modularStartChooser.addDefaultOption("Left", ModularAutoBuilder.StartSide.LEFT);
+        modularStartChooser.addOption("Right", ModularAutoBuilder.StartSide.RIGHT);
+        modularStartChooser.addOption("Middle", ModularAutoBuilder.StartSide.MIDDLE);
+
+        modularFirstIntakeChooser.addDefaultOption(
+                "Center", ModularAutoBuilder.IntakeLocation.CENTER);
+        modularFirstIntakeChooser.addOption("Depot", ModularAutoBuilder.IntakeLocation.DEPOT);
+        modularFirstIntakeChooser.addOption("Outpost", ModularAutoBuilder.IntakeLocation.OUTPOST);
+        modularFirstIntakeChooser.addOption(
+                "Left (Pathfind)", ModularAutoBuilder.IntakeLocation.LEFT);
+        modularFirstIntakeChooser.addOption(
+                "Right (Pathfind)", ModularAutoBuilder.IntakeLocation.RIGHT);
+        modularFirstIntakeChooser.addOption("Preload", ModularAutoBuilder.IntakeLocation.PRELOAD);
+        modularFirstIntakeChooser.addOption(
+                "Do Nothing", ModularAutoBuilder.IntakeLocation.DO_NOTHING);
+
+        modularFirstShootChooser.addDefaultOption(
+                "Shoot In Place", ModularAutoBuilder.ShootPosition.IN_PLACE);
+        modularFirstShootChooser.addOption("Near Hub", ModularAutoBuilder.ShootPosition.NEAR);
+        modularFirstShootChooser.addOption("Far Hub", ModularAutoBuilder.ShootPosition.FAR);
+        modularFirstShootChooser.addOption("Left Hub", ModularAutoBuilder.ShootPosition.LEFT);
+        modularFirstShootChooser.addOption("Right Hub", ModularAutoBuilder.ShootPosition.RIGHT);
+
+        modularSecondIntakeChooser.addDefaultOption(
+                "Center", ModularAutoBuilder.IntakeLocation.CENTER);
+        modularSecondIntakeChooser.addOption("Depot", ModularAutoBuilder.IntakeLocation.DEPOT);
+        modularSecondIntakeChooser.addOption("Outpost", ModularAutoBuilder.IntakeLocation.OUTPOST);
+        modularSecondIntakeChooser.addOption(
+                "Left (Pathfind)", ModularAutoBuilder.IntakeLocation.LEFT);
+        modularSecondIntakeChooser.addOption(
+                "Right (Pathfind)", ModularAutoBuilder.IntakeLocation.RIGHT);
+        modularSecondIntakeChooser.addOption(
+                "Do Nothing", ModularAutoBuilder.IntakeLocation.DO_NOTHING);
+
+        modularSecondShootChooser.addDefaultOption(
+                "Shoot In Place", ModularAutoBuilder.ShootPosition.IN_PLACE);
+        modularSecondShootChooser.addOption("Near Hub", ModularAutoBuilder.ShootPosition.NEAR);
+        modularSecondShootChooser.addOption("Far Hub", ModularAutoBuilder.ShootPosition.FAR);
+        modularSecondShootChooser.addOption("Left Hub", ModularAutoBuilder.ShootPosition.LEFT);
+        modularSecondShootChooser.addOption("Right Hub", ModularAutoBuilder.ShootPosition.RIGHT);
     }
 
     private static void configureLocationChooser(
@@ -100,25 +161,82 @@ public class AutoModeSelector {
         var drive = container.getDriveSubsystem();
         var state = container.getRobotState();
         Logger.recordOutput("Auto/SelectedMode", mode.name());
-        return switch (mode) {
-            case DO_NOTHING -> Commands.none();
-            case SYSID_QUASISTATIC_FORWARD -> drive.sysIdQuasistatic(
-                            SysIdRoutine.Direction.kForward)
-                    .withName("Drive SysId Quasistatic Forward");
-            case SYSID_QUASISTATIC_REVERSE -> drive.sysIdQuasistatic(
-                            SysIdRoutine.Direction.kReverse)
-                    .withName("Drive SysId Quasistatic Reverse");
-            case SYSID_DYNAMIC_FORWARD -> drive.sysIdDynamic(SysIdRoutine.Direction.kForward)
-                    .withName("Drive SysId Dynamic Forward");
-            case SYSID_DYNAMIC_REVERSE -> drive.sysIdDynamic(SysIdRoutine.Direction.kReverse)
-                    .withName("Drive SysId Dynamic Reverse");
-            case PATHPLANNER_AUTO -> loadPathPlannerAuto(pathPlannerChooser.get());
-            case CHOREO_PATH -> AutoUtil.followChoreoPath(
-                    drive, state, Optional.ofNullable(choreoChooser.get()).orElse(""), red);
-            case PATHFIND_TO_LOCATION -> AutoFactory.pathfindTo(
-                    drive, state, () -> selected(targetChooser, FieldLocation.HUB_NEAR), red);
-            case ADAPTIVE_ROUTE -> buildAdaptiveRoute(drive, state, red);
-        };
+        Command command =
+                switch (mode) {
+                    case DO_NOTHING -> Commands.none();
+                    case SYSID_QUASISTATIC_FORWARD -> drive.sysIdQuasistatic(
+                                    SysIdRoutine.Direction.kForward)
+                            .withName("Drive SysId Quasistatic Forward");
+                    case SYSID_QUASISTATIC_REVERSE -> drive.sysIdQuasistatic(
+                                    SysIdRoutine.Direction.kReverse)
+                            .withName("Drive SysId Quasistatic Reverse");
+                    case SYSID_DYNAMIC_FORWARD -> drive.sysIdDynamic(
+                                    SysIdRoutine.Direction.kForward)
+                            .withName("Drive SysId Dynamic Forward");
+                    case SYSID_DYNAMIC_REVERSE -> drive.sysIdDynamic(
+                                    SysIdRoutine.Direction.kReverse)
+                            .withName("Drive SysId Dynamic Reverse");
+                    case PATHPLANNER_AUTO -> loadPathPlannerAuto(pathPlannerChooser.get());
+                    case CHOREO_PATH -> AutoUtil.followChoreoPath(
+                            drive, state, Optional.ofNullable(choreoChooser.get()).orElse(""), red);
+                    case MODULAR_AUTO -> buildModularAuto(red);
+                    case PATHFIND_TO_LOCATION -> AutoFactory.pathfindTo(
+                            drive,
+                            state,
+                            () -> selected(targetChooser, FieldLocation.HUB_NEAR),
+                            red);
+                    case ADAPTIVE_ROUTE -> buildAdaptiveRoute(drive, state, red);
+                };
+        if (mode == DesiredMode.PATHPLANNER_AUTO
+                || mode == DesiredMode.CHOREO_PATH
+                || mode == DesiredMode.PATHFIND_TO_LOCATION
+                || mode == DesiredMode.ADAPTIVE_ROUTE) {
+            Superstructure superstructure = container.getSuperstructure();
+            return Commands.sequence(
+                            Commands.runOnce(
+                                    () -> superstructure.setGoal(Goal.DEPLOYED_IDLE),
+                                    superstructure),
+                            Commands.waitUntil(superstructure::atGoal).withTimeout(1.25),
+                            command)
+                    .withName("Deploy Intake Then " + command.getName());
+        }
+        return command;
+    }
+
+    private Command buildModularAuto(BooleanSupplier isRedAlliance) {
+        ModularAutoBuilder.StartSide start =
+                Optional.ofNullable(modularStartChooser.get())
+                        .orElse(ModularAutoBuilder.StartSide.LEFT);
+        ModularAutoBuilder.IntakeLocation first =
+                Optional.ofNullable(modularFirstIntakeChooser.get())
+                        .orElse(ModularAutoBuilder.IntakeLocation.CENTER);
+        ModularAutoBuilder.IntakeLocation second =
+                Optional.ofNullable(modularSecondIntakeChooser.get())
+                        .orElse(ModularAutoBuilder.IntakeLocation.CENTER);
+        ModularAutoBuilder.ShootPosition firstShoot =
+                Optional.ofNullable(modularFirstShootChooser.get())
+                        .orElse(ModularAutoBuilder.ShootPosition.IN_PLACE);
+        ModularAutoBuilder.ShootPosition secondShoot =
+                Optional.ofNullable(modularSecondShootChooser.get())
+                        .orElse(ModularAutoBuilder.ShootPosition.IN_PLACE);
+
+        Logger.recordOutput("Auto/Modular/StartSide", start.name());
+        Logger.recordOutput("Auto/Modular/FirstIntake", first.name());
+        Logger.recordOutput("Auto/Modular/FirstShoot", firstShoot.name());
+        Logger.recordOutput("Auto/Modular/SecondIntake", second.name());
+        Logger.recordOutput("Auto/Modular/SecondShoot", secondShoot.name());
+
+        return new ModularAutoBuilder(
+                        container.getDriveSubsystem(),
+                        container.getRobotState(),
+                        container.getSuperstructure(),
+                        isRedAlliance)
+                .startSide(start)
+                .firstIntake(first)
+                .firstShoot(firstShoot)
+                .secondIntake(second)
+                .secondShoot(secondShoot)
+                .build();
     }
 
     private Command buildAdaptiveRoute(
@@ -200,6 +318,12 @@ public class AutoModeSelector {
         if (mode == DesiredMode.CHOREO_PATH)
             return AutoUtil.getChoreoStartingPose(
                     Optional.ofNullable(choreoChooser.get()).orElse(""), isRed.getAsBoolean());
+        if (mode == DesiredMode.MODULAR_AUTO) {
+            ModularAutoBuilder.StartSide start =
+                    Optional.ofNullable(modularStartChooser.get())
+                            .orElse(ModularAutoBuilder.StartSide.LEFT);
+            return Optional.of(start.getPose(isRed.getAsBoolean()));
+        }
         return Optional.empty();
     }
 
@@ -214,6 +338,11 @@ public class AutoModeSelector {
                         || adaptiveFirstChooser.get() != lastAdaptiveFirst
                         || adaptiveSecondChooser.get() != lastAdaptiveSecond
                         || adaptiveThirdChooser.get() != lastAdaptiveThird
+                        || modularStartChooser.get() != lastModularStart
+                        || modularFirstIntakeChooser.get() != lastModularFirstIntake
+                        || modularFirstShootChooser.get() != lastModularFirstShoot
+                        || modularSecondIntakeChooser.get() != lastModularSecondIntake
+                        || modularSecondShootChooser.get() != lastModularSecondShoot
                         || !DriverStation.getAlliance().equals(lastAlliance);
         if (changed) {
             lastMode = modeChooser.get();
@@ -223,6 +352,11 @@ public class AutoModeSelector {
             lastAdaptiveFirst = adaptiveFirstChooser.get();
             lastAdaptiveSecond = adaptiveSecondChooser.get();
             lastAdaptiveThird = adaptiveThirdChooser.get();
+            lastModularStart = modularStartChooser.get();
+            lastModularFirstIntake = modularFirstIntakeChooser.get();
+            lastModularFirstShoot = modularFirstShootChooser.get();
+            lastModularSecondIntake = modularSecondIntakeChooser.get();
+            lastModularSecondShoot = modularSecondShootChooser.get();
             lastAlliance = DriverStation.getAlliance();
         }
         return changed;

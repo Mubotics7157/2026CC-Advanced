@@ -46,14 +46,14 @@ public final class AutoFactory {
         return pathfindTo(drive, state, () -> FieldLocation.DEPOT, red);
     }
 
-    public static Command getPathfindToLeftTrenchCommand(
+    public static Command getPathfindToLeftCommand(
             DriveSubsystem drive, RobotState state, BooleanSupplier red) {
-        return pathfindTo(drive, state, () -> FieldLocation.LEFT_TRENCH, red);
+        return pathfindTo(drive, state, () -> FieldLocation.LEFT, red);
     }
 
-    public static Command getPathfindToRightTrenchCommand(
+    public static Command getPathfindToRightCommand(
             DriveSubsystem drive, RobotState state, BooleanSupplier red) {
-        return pathfindTo(drive, state, () -> FieldLocation.RIGHT_TRENCH, red);
+        return pathfindTo(drive, state, () -> FieldLocation.RIGHT, red);
     }
 
     public static Command getPathfindToHubCommand(

@@ -11,9 +11,10 @@ import frc.robot.subsystems.drive.DriveConstants;
 
 /** Alliance-aware Rebuilt pathfinding destinations, derived from the official 2026 tag layout. */
 public enum FieldLocation {
-    LEFT_TRENCH(RebuiltField.leftTrench(), true, false),
-    RIGHT_TRENCH(RebuiltField.rightTrench(), true, false),
+    LEFT(RebuiltField.leftTrench(), true, false),
+    RIGHT(RebuiltField.rightTrench(), true, false),
     DEPOT(RebuiltField.depot(), true, false),
+    OUTPOST(RebuiltField.outpost(), true, false),
     HUB_NEAR(RebuiltField.hubStagingPose(26), false, true),
     HUB_FAR(RebuiltField.hubStagingPose(20), false, true),
     HUB_LEFT(RebuiltField.hubStagingPose(21), false, true),
@@ -89,6 +90,12 @@ public enum FieldLocation {
                     Units.inchesToMeters(27.0),
                     LAYOUT.getFieldWidth() / 2.0 + Units.inchesToMeters(75.93),
                     Rotation2d.kPi);
+        }
+
+        static Pose2d outpost() {
+            double bumperClearance =
+                    Units.inchesToMeters(DriveConstants.kBumperLengthInches / 2.0 + 2.0);
+            return new Pose2d(bumperClearance, tagPose(29).getY(), Rotation2d.kZero);
         }
 
         static Pose2d leftCorner() {
