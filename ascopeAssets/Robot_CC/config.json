@@ -1,0 +1,22 @@
+{
+    "name": "CC",
+    "isFTC": false,
+    "disableSimplification": false,
+    "rotations": [
+        {
+            "axis": "x",
+            "degrees": 180
+        },
+        {
+            "axis": "z",
+            "degrees": 90
+        }
+    ],
+    "position": [
+        0,
+        0,
+        0.1
+    ],
+    "cameras": [],
+    "components": []
+}
