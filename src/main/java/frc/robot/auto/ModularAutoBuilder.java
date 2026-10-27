@@ -23,7 +23,8 @@ import org.littletonrobotics.junction.Logger;
 /** Builds a selectable, two-cycle autonomous routine from Choreo paths and pathfinding legs. */
 public final class ModularAutoBuilder {
     private static final double DEPLOY_TIMEOUT_SECONDS = 1.25;
-    private static final double SHOOT_SECONDS = 3.0;
+    // Tune this dwell on the robot after testing the full cycle.
+    private static final double SHOOT_SECONDS = 4.5;
 
     public enum StartSide {
         LEFT("Left", "LEFT", FieldLocation.LEFT),
@@ -73,14 +74,20 @@ public final class ModularAutoBuilder {
         }
 
         public Pose2d getPose(boolean redAlliance) {
-            // Prefer the center route's start pose; preload paths provide a starter-project
-            // fallback until the remaining paths are added.
-            Optional<Pose2d> pathPose =
-                    AutoUtil.getChoreoStartingPose(getRushPathName(), redAlliance);
-            if (pathPose.isPresent()) return pathPose.get();
-
-            pathPose = AutoUtil.getChoreoStartingPose(getPreloadPathName(), redAlliance);
-            return pathPose.orElseGet(() -> fallbackLocation.getPose(redAlliance));
+            // Routes from one start side share a branching pose. Use the first available
+            // trajectory's starting pose so the branch target matches the authored paths.
+            for (String pathName :
+                    new String[] {
+                        getRushPathName(),
+                        getRush2PathName(),
+                        getPreloadPathName(),
+                        getDepotPathName()
+                    }) {
+                Optional<Pose2d> pathPose =
+                        AutoUtil.getChoreoStartingPose(pathName, redAlliance);
+                if (pathPose.isPresent()) return pathPose.get();
+            }
+            return fallbackLocation.getPose(redAlliance);
         }
     }
 
@@ -193,18 +200,20 @@ public final class ModularAutoBuilder {
                             buildIntakeCycle(firstIntake, false),
                             logState("CYCLE1_SHOOT"),
                             middleDepotAuto ? buildShootForever() : buildShoot(firstShoot));
+            if (!middleDepotAuto) {
+                auto = auto.andThen(logState("CYCLE1_RETURN_TO_BRANCH"), buildBranchReset());
+            }
         }
 
         if (!middleDepotAuto && secondIntake != IntakeLocation.DO_NOTHING) {
-            if (firstIntake != IntakeLocation.DO_NOTHING) {
-                auto = auto.andThen(logState("RETURN_TO_BRANCH"), buildBranchReset());
-            }
             auto =
                     auto.andThen(
                             logState("CYCLE2_PATHS"),
                             buildIntakeCycle(secondIntake, true),
                             logState("CYCLE2_SHOOT"),
-                            buildShoot(secondShoot));
+                            buildShoot(secondShoot),
+                            logState("CYCLE2_RETURN_TO_BRANCH"),
+                            buildBranchReset());
         }
 
         if (middleDepotAuto) return auto.withName("Modular Middle Depot Auto");
@@ -224,7 +233,10 @@ public final class ModularAutoBuilder {
             case OUTPOST -> buildPathfindIntake(FieldLocation.OUTPOST);
             case LEFT -> buildPathfindIntake(FieldLocation.LEFT);
             case RIGHT -> buildPathfindIntake(FieldLocation.RIGHT);
-            case PRELOAD -> followOrLogMissing(startSide.getPreloadPathName(), "PRELOAD");
+            case PRELOAD ->
+                    Commands.sequence(
+                            followOrLogMissing(startSide.getPreloadPathName(), "PRELOAD"),
+                            buildBranchReset());
             case DO_NOTHING -> Commands.none();
         };
     }
@@ -235,12 +247,16 @@ public final class ModularAutoBuilder {
         Command returnCommand =
                 trajectoryExists(returning)
                         ? AutoUtil.followChoreoPath(drive, robotState, returning, isRedAlliance)
-                        : logMissing(returning, "RETURN");
+                        : buildBranchReset();
         return Commands.sequence(
                         Commands.runOnce(
                                 () -> {
                                     Logger.recordOutput("ModularAuto/RushPath", outbound);
-                                    Logger.recordOutput("ModularAuto/ReturnPath", returning);
+                                    Logger.recordOutput(
+                                            "ModularAuto/ReturnPath",
+                                            trajectoryExists(returning)
+                                                    ? returning
+                                                    : "ADSTAR_TO_BRANCH");
                                 }),
                         Commands.deadline(
                                 outboundCommand,
@@ -266,9 +282,12 @@ public final class ModularAutoBuilder {
     private Command buildPathfindIntake(FieldLocation location) {
         Command driveCommand =
                 PathfindingAutoAlignCommand.create(drive, () -> location, isRedAlliance);
-        return Commands.deadline(
-                        driveCommand,
-                        superstructure.run(() -> superstructure.setGoal(Goal.INTAKING)))
+        return Commands.sequence(
+                        Commands.deadline(
+                                driveCommand,
+                                superstructure.run(
+                                        () -> superstructure.setGoal(Goal.INTAKING))),
+                        buildBranchReset())
                 .withName("Pathfind Intake: " + location.name());
     }
 
