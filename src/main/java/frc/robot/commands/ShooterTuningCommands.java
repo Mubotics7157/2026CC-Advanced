@@ -42,15 +42,25 @@ public final class ShooterTuningCommands {
                 .withName("Shooter Tuning: Run at Dashboard RPM");
     }
 
-    /** Moves both hoods to the dashboard angle without starting the flywheels. */
-    public static Command moveHoodToTunableAngle(Shooter shooter) {
-        return Commands.runOnce(
-                        () ->
-                                shooter.setHoodAngle(
-                                        Units.degreesToRadians(
-                                                ShooterConstants.TUNING_HOOD_ANGLE_DEG.get())),
-                        shooter)
-                .withName("Shooter Hood: Move to Dashboard Angle");
+    /** Tracks the dashboard hood angle while preventing the superstructure from parking it. */
+    public static Command moveHoodToTunableAngle(Shooter shooter, Superstructure superstructure) {
+        return Commands.run(
+                        () -> {
+                            superstructure.setShooterTuningOverride(true);
+                            superstructure.setGoal(Goal.IDLE);
+                            shooter.setHoodAngle(
+                                    Units.degreesToRadians(
+                                            ShooterConstants.TUNING_HOOD_ANGLE_DEG.get()));
+                        },
+                        shooter,
+                        superstructure)
+                .finallyDo(
+                        () -> {
+                            shooter.stop();
+                            superstructure.setShooterTuningOverride(false);
+                            superstructure.setGoal(Goal.IDLE);
+                        })
+                .withName("Shooter Hood: Track Dashboard Angle");
     }
 
     /** Ramps all three wheels up to a bounded voltage and prints per-wheel kS/kV fits. */

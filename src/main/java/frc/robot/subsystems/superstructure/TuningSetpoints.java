@@ -18,7 +18,7 @@ public final class TuningSetpoints {
     public static final LoggedTunableNumber SHOOTER_RPM =
             new LoggedTunableNumber("Tuning/Shooter/FlywheelRPM", 0.0);
     public static final LoggedTunableNumber SHOOTER_HOOD_DEG =
-            new LoggedTunableNumber("Tuning/Shooter/HoodAngleDeg", 20.0);
+            new LoggedTunableNumber("Tuning/Shooter/HoodAngleDeg", 35.0);
 
     public static double shooterVelocityRadPerSec() {
         return Units.rotationsPerMinuteToRadiansPerSecond(SHOOTER_RPM.get());

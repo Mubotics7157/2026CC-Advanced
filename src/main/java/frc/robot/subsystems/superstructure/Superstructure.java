@@ -154,8 +154,8 @@ public class Superstructure extends SubsystemBase {
                 commandShootingAgitation();
                 intake.setRollerVelocity(
                         SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
-                shooter.setHoodAngle(shootingHoodAngleRad);
                 shooter.setVelocity(shootingVelocityRadPerSec);
+                shooter.setHoodAngle(shootingHoodAngleRad);
 
                 // Normal gating updates feedingLatched in the background so behavior reverts
                 // cleanly
