@@ -9,6 +9,7 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Voltage;
@@ -22,9 +23,11 @@ public class IndexerIOReal implements IndexerIO {
             new VelocityTorqueCurrentFOC(0.0);
 
     private final StatusSignal<AngularVelocity> conveyorVelocity;
+    private final StatusSignal<Angle> conveyorPosition;
     private final StatusSignal<Voltage> conveyorAppliedVolts;
     private final StatusSignal<Current> conveyorCurrent;
     private final StatusSignal<AngularVelocity> feederVelocity;
+    private final StatusSignal<Angle> feederPosition;
     private final StatusSignal<Voltage> feederAppliedVolts;
     private final StatusSignal<Current> feederCurrent;
 
@@ -56,18 +59,22 @@ public class IndexerIOReal implements IndexerIO {
         feederMotor.getConfigurator().apply(feederConfig);
 
         conveyorVelocity = conveyorMotor.getVelocity();
+        conveyorPosition = conveyorMotor.getPosition();
         conveyorAppliedVolts = conveyorMotor.getMotorVoltage();
         conveyorCurrent = conveyorMotor.getStatorCurrent();
         feederVelocity = feederMotor.getVelocity();
+        feederPosition = feederMotor.getPosition();
         feederAppliedVolts = feederMotor.getMotorVoltage();
         feederCurrent = feederMotor.getStatorCurrent();
 
         BaseStatusSignal.setUpdateFrequencyForAll(
                 IndexerConstants.STATUS_SIGNAL_UPDATE_FREQUENCY,
                 conveyorVelocity,
+                conveyorPosition,
                 conveyorAppliedVolts,
                 conveyorCurrent,
                 feederVelocity,
+                feederPosition,
                 feederAppliedVolts,
                 feederCurrent);
 
@@ -79,16 +86,20 @@ public class IndexerIOReal implements IndexerIO {
     public void updateInputs(IndexerIOInputs inputs) {
         BaseStatusSignal.refreshAll(
                 conveyorVelocity,
+                conveyorPosition,
                 conveyorAppliedVolts,
                 conveyorCurrent,
                 feederVelocity,
+                feederPosition,
                 feederAppliedVolts,
                 feederCurrent);
 
+        inputs.conveyorPosition = Units.rotationsToRadians(conveyorPosition.getValueAsDouble());
         inputs.conveyorVelocity = Units.rotationsToRadians(conveyorVelocity.getValueAsDouble());
         inputs.conveyorVoltage = conveyorAppliedVolts.getValueAsDouble();
         inputs.conveyorCurrent = conveyorCurrent.getValueAsDouble();
         inputs.conveyorVelocitySetpoint = conveyorVelocitySetpoint;
+        inputs.feederPosition = Units.rotationsToRadians(feederPosition.getValueAsDouble());
         inputs.feederVelocity = Units.rotationsToRadians(feederVelocity.getValueAsDouble());
         inputs.feederVoltage = feederAppliedVolts.getValueAsDouble();
         inputs.feederCurrent = feederCurrent.getValueAsDouble();

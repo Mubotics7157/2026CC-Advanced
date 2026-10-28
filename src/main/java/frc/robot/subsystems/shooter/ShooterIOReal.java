@@ -14,6 +14,7 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Voltage;
@@ -31,8 +32,11 @@ public class ShooterIOReal implements ShooterIO {
     private final VoltageOut voltageRequest = new VoltageOut(0.0);
 
     private final StatusSignal<AngularVelocity> leftVelocity;
+    private final StatusSignal<Angle> leftPosition;
     private final StatusSignal<AngularVelocity> middleVelocity;
+    private final StatusSignal<Angle> middlePosition;
     private final StatusSignal<AngularVelocity> rightVelocity;
+    private final StatusSignal<Angle> rightPosition;
 
     private final StatusSignal<Voltage> leftAppliedVolts;
     private final StatusSignal<Voltage> middleAppliedVolts;
@@ -64,8 +68,11 @@ public class ShooterIOReal implements ShooterIO {
                 rightMotor, InvertedValue.Clockwise_Positive, ShooterConstants.Flywheel.RIGHT);
 
         leftVelocity = leftMotor.getVelocity();
+        leftPosition = leftMotor.getPosition();
         middleVelocity = middleMotor.getVelocity();
+        middlePosition = middleMotor.getPosition();
         rightVelocity = rightMotor.getVelocity();
+        rightPosition = rightMotor.getPosition();
 
         leftAppliedVolts = leftMotor.getMotorVoltage();
         middleAppliedVolts = middleMotor.getMotorVoltage();
@@ -83,8 +90,11 @@ public class ShooterIOReal implements ShooterIO {
         BaseStatusSignal.setUpdateFrequencyForAll(
                 ShooterConstants.STATUS_SIGNAL_UPDATE_FREQUENCY,
                 leftVelocity,
+                leftPosition,
                 middleVelocity,
+                middlePosition,
                 rightVelocity,
+                rightPosition,
                 leftAppliedVolts,
                 middleAppliedVolts,
                 rightAppliedVolts,
@@ -101,8 +111,11 @@ public class ShooterIOReal implements ShooterIO {
     public void updateInputs(ShooterIOInputs inputs) {
         BaseStatusSignal.refreshAll(
                 leftVelocity,
+                leftPosition,
                 middleVelocity,
+                middlePosition,
                 rightVelocity,
+                rightPosition,
                 leftAppliedVolts,
                 middleAppliedVolts,
                 rightAppliedVolts,
@@ -110,6 +123,9 @@ public class ShooterIOReal implements ShooterIO {
                 middleCurrent,
                 rightCurrent);
 
+        inputs.leftPosition = Units.rotationsToRadians(leftPosition.getValueAsDouble());
+        inputs.middlePosition = Units.rotationsToRadians(middlePosition.getValueAsDouble());
+        inputs.rightPosition = Units.rotationsToRadians(rightPosition.getValueAsDouble());
         inputs.leftVelocity = Units.rotationsToRadians(leftVelocity.getValueAsDouble());
         inputs.middleVelocity = Units.rotationsToRadians(middleVelocity.getValueAsDouble());
         inputs.rightVelocity = Units.rotationsToRadians(rightVelocity.getValueAsDouble());

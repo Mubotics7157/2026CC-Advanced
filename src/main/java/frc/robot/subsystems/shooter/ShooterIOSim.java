@@ -31,6 +31,9 @@ public class ShooterIOSim implements ShooterIO {
         middleSim.update(SIM_LOOP_PERIOD);
         rightSim.update(SIM_LOOP_PERIOD);
 
+        inputs.leftPosition = leftSim.getAngularPositionRad();
+        inputs.middlePosition = middleSim.getAngularPositionRad();
+        inputs.rightPosition = rightSim.getAngularPositionRad();
         inputs.leftVelocity = leftSim.getAngularVelocityRadPerSec();
         inputs.middleVelocity = middleSim.getAngularVelocityRadPerSec();
         inputs.rightVelocity = rightSim.getAngularVelocityRadPerSec();

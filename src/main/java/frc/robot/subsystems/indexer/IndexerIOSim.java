@@ -39,10 +39,12 @@ public class IndexerIOSim implements IndexerIO {
         conveyorSim.update(SIM_LOOP_PERIOD);
         feederSim.update(SIM_LOOP_PERIOD);
 
+        inputs.conveyorPosition = conveyorSim.getAngularPositionRad();
         inputs.conveyorVelocity = conveyorSim.getAngularVelocityRadPerSec();
         inputs.conveyorVoltage = conveyorAppliedVolts;
         inputs.conveyorCurrent = conveyorSim.getCurrentDrawAmps();
         inputs.conveyorVelocitySetpoint = conveyorVelocitySetpoint;
+        inputs.feederPosition = feederSim.getAngularPositionRad();
         inputs.feederVelocity = feederSim.getAngularVelocityRadPerSec();
         inputs.feederVoltage = feederAppliedVolts;
         inputs.feederCurrent = feederSim.getCurrentDrawAmps();

@@ -4,6 +4,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants;
 import frc.robot.lib.rebuilt.RebuiltHubStatus;
 import frc.robot.subsystems.indexer.Indexer;
 import frc.robot.subsystems.intake.Intake;
@@ -87,6 +88,27 @@ public class Superstructure extends SubsystemBase {
                 "Superstructure/ShootingHoodAngleDeg", Math.toDegrees(shootingHoodAngleRad));
         Logger.recordOutput("Superstructure/ShotReadyToFeed", shotReadyToFeed);
         Logger.recordOutput("Superstructure/ShooterTuningOverride", shooterTuningOverride);
+
+        Logger.recordOutput("Superstructure/TuningMode", Constants.kTuningMode);
+        Logger.recordOutput(
+                "Tuning/Intake/RollerSetpointRadPerSec",
+                TuningSetpoints.INTAKE_ROLLER_RAD_PER_SEC.get());
+        Logger.recordOutput("Tuning/Intake/ArmSetpointRad", TuningSetpoints.INTAKE_ARM_RAD.get());
+        Logger.recordOutput(
+                "Tuning/Indexer/ConveyorSetpointRadPerSec",
+                TuningSetpoints.INDEXER_CONVEYOR_RAD_PER_SEC.get());
+        Logger.recordOutput(
+                "Tuning/Indexer/FeederSetpointRadPerSec",
+                TuningSetpoints.INDEXER_FEEDER_RAD_PER_SEC.get());
+        Logger.recordOutput(
+                "Tuning/Shooter/FlywheelSetpointRadPerSec",
+                TuningSetpoints.shooterVelocityRadPerSec());
+        Logger.recordOutput("Tuning/Shooter/HoodSetpointRad", TuningSetpoints.hoodAngleRad());
+
+        if (Constants.kTuningMode) {
+            applyTuningSetpoints();
+            return;
+        }
 
         if (shooterTuningOverride) {
             intake.stopRoller();
@@ -179,6 +201,16 @@ public class Superstructure extends SubsystemBase {
                 indexer.stop();
                 break;
         }
+    }
+
+    private void applyTuningSetpoints() {
+        intake.setArmPosition(TuningSetpoints.INTAKE_ARM_RAD.get());
+        intake.setRollerVelocity(TuningSetpoints.INTAKE_ROLLER_RAD_PER_SEC.get());
+        indexer.setConveyorVelocity(TuningSetpoints.INDEXER_CONVEYOR_RAD_PER_SEC.get());
+        indexer.setFeederVelocity(TuningSetpoints.INDEXER_FEEDER_RAD_PER_SEC.get());
+        shooter.setLaunchActive(false);
+        shooter.setVelocity(TuningSetpoints.shooterVelocityRadPerSec());
+        shooter.setHoodAngle(TuningSetpoints.hoodAngleRad());
     }
 
     public Goal getCurrentGoal() {

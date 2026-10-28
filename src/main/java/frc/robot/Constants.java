@@ -9,6 +9,9 @@ public class Constants {
     /** Set by `Main` when running log replay. */
     public static boolean kIsReplay = false;
 
+    /** Enable mechanism setpoint tuning from Elastic dashboard values. */
+    public static final boolean kTuningMode = false;
+
     public enum SimControllerType {
         XBOX,
         DUAL_SENSE

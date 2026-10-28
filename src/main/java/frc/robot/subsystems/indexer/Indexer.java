@@ -19,12 +19,14 @@ public class Indexer extends SubsystemBase {
         Logger.processInputs("Indexer", inputs);
 
         Logger.recordOutput("Indexer/ConveyorVelocityRadPerSec", inputs.conveyorVelocity);
+        Logger.recordOutput("Indexer/ConveyorPositionRad", inputs.conveyorPosition);
         Logger.recordOutput("Indexer/ConveyorSetpointRadPerSec", inputs.conveyorVelocitySetpoint);
         Logger.recordOutput(
                 "Indexer/ConveyorVelocityErrorRadPerSec",
                 inputs.conveyorVelocitySetpoint - inputs.conveyorVelocity);
         Logger.recordOutput("Indexer/ConveyorRunning", isConveyorRunning());
         Logger.recordOutput("Indexer/FeederVelocityRadPerSec", inputs.feederVelocity);
+        Logger.recordOutput("Indexer/FeederPositionRad", inputs.feederPosition);
         Logger.recordOutput("Indexer/FeederSetpointRadPerSec", inputs.feederVelocitySetpoint);
         Logger.recordOutput(
                 "Indexer/FeederVelocityErrorRadPerSec",

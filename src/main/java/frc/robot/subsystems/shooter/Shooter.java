@@ -140,6 +140,9 @@ public class Shooter extends SubsystemBase {
     }
 
     private void logTelemetry() {
+        Logger.recordOutput("Shooter/LeftPositionRad", inputs.leftPosition);
+        Logger.recordOutput("Shooter/MiddlePositionRad", inputs.middlePosition);
+        Logger.recordOutput("Shooter/RightPositionRad", inputs.rightPosition);
         Logger.recordOutput("Shooter/LeftVelocityRadPerSec", inputs.leftVelocity);
         Logger.recordOutput("Shooter/MiddleVelocityRadPerSec", inputs.middleVelocity);
         Logger.recordOutput("Shooter/RightVelocityRadPerSec", inputs.rightVelocity);

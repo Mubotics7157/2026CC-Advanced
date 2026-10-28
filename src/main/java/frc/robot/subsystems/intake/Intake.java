@@ -16,6 +16,11 @@ public class Intake extends SubsystemBase {
     public void periodic() {
         io.updateInputs(inputs);
         Logger.processInputs("Intake", inputs);
+        Logger.recordOutput("Intake/ArmPositionRad", inputs.armPosition);
+        Logger.recordOutput("Intake/ArmSetpointRad", inputs.armPositionSetpoint);
+        Logger.recordOutput("Intake/RollerPositionRad", inputs.rollerPosition);
+        Logger.recordOutput(
+                "Intake/RollerVelocitySetpointRadPerSec", inputs.rollerVelocitySetpoint);
         Logger.recordOutput(
                 "Intake/ArmPositionErrorRad", inputs.armPositionSetpoint - inputs.armPosition);
         Logger.recordOutput(

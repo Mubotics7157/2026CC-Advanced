@@ -83,8 +83,7 @@ public final class ModularAutoBuilder {
                         getPreloadPathName(),
                         getDepotPathName()
                     }) {
-                Optional<Pose2d> pathPose =
-                        AutoUtil.getChoreoStartingPose(pathName, redAlliance);
+                Optional<Pose2d> pathPose = AutoUtil.getChoreoStartingPose(pathName, redAlliance);
                 if (pathPose.isPresent()) return pathPose.get();
             }
             return fallbackLocation.getPose(redAlliance);
@@ -233,10 +232,9 @@ public final class ModularAutoBuilder {
             case OUTPOST -> buildPathfindIntake(FieldLocation.OUTPOST);
             case LEFT -> buildPathfindIntake(FieldLocation.LEFT);
             case RIGHT -> buildPathfindIntake(FieldLocation.RIGHT);
-            case PRELOAD ->
-                    Commands.sequence(
-                            followOrLogMissing(startSide.getPreloadPathName(), "PRELOAD"),
-                            buildBranchReset());
+            case PRELOAD -> Commands.sequence(
+                    followOrLogMissing(startSide.getPreloadPathName(), "PRELOAD"),
+                    buildBranchReset());
             case DO_NOTHING -> Commands.none();
         };
     }
@@ -285,8 +283,7 @@ public final class ModularAutoBuilder {
         return Commands.sequence(
                         Commands.deadline(
                                 driveCommand,
-                                superstructure.run(
-                                        () -> superstructure.setGoal(Goal.INTAKING))),
+                                superstructure.run(() -> superstructure.setGoal(Goal.INTAKING))),
                         buildBranchReset())
                 .withName("Pathfind Intake: " + location.name());
     }

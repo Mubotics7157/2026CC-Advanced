@@ -5,10 +5,12 @@ import org.littletonrobotics.junction.AutoLog;
 public interface IndexerIO {
     @AutoLog
     class IndexerIOInputs {
+        public double conveyorPosition = 0.0;
         public double conveyorVelocity = 0.0;
         public double conveyorVoltage = 0.0;
         public double conveyorCurrent = 0.0;
         public double conveyorVelocitySetpoint = 0.0;
+        public double feederPosition = 0.0;
         public double feederVelocity = 0.0;
         public double feederVoltage = 0.0;
         public double feederCurrent = 0.0;
