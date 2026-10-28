@@ -7,7 +7,7 @@ import com.ctre.phoenix6.configs.Slot1Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.TorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VelocityDutyCycle;
-import com.ctre.phoenix6.controls.VelocityTorqueCurrentFOC;
+import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -26,7 +26,7 @@ public class ShooterIOReal implements ShooterIO {
     private final TalonFX middleMotor;
     private final TalonFX rightMotor;
 
-    private final VelocityTorqueCurrentFOC velocityRequest = new VelocityTorqueCurrentFOC(0.0);
+    private final VelocityVoltage velocityRequest = new VelocityVoltage(0.0);
     private final VelocityDutyCycle bangBangRequest = new VelocityDutyCycle(0.0).withSlot(1);
     private final TorqueCurrentFOC torqueCurrentRequest = new TorqueCurrentFOC(0.0);
     private final VoltageOut voltageRequest = new VoltageOut(0.0);
@@ -37,6 +37,9 @@ public class ShooterIOReal implements ShooterIO {
     private final StatusSignal<Angle> middlePosition;
     private final StatusSignal<AngularVelocity> rightVelocity;
     private final StatusSignal<Angle> rightPosition;
+    private final StatusSignal<Boolean> leftUnlicensedFeatureFault;
+    private final StatusSignal<Boolean> middleUnlicensedFeatureFault;
+    private final StatusSignal<Boolean> rightUnlicensedFeatureFault;
 
     private final StatusSignal<Voltage> leftAppliedVolts;
     private final StatusSignal<Voltage> middleAppliedVolts;
@@ -73,6 +76,9 @@ public class ShooterIOReal implements ShooterIO {
         middlePosition = middleMotor.getPosition();
         rightVelocity = rightMotor.getVelocity();
         rightPosition = rightMotor.getPosition();
+        leftUnlicensedFeatureFault = leftMotor.getFault_UnlicensedFeatureInUse();
+        middleUnlicensedFeatureFault = middleMotor.getFault_UnlicensedFeatureInUse();
+        rightUnlicensedFeatureFault = rightMotor.getFault_UnlicensedFeatureInUse();
 
         leftAppliedVolts = leftMotor.getMotorVoltage();
         middleAppliedVolts = middleMotor.getMotorVoltage();
@@ -95,6 +101,9 @@ public class ShooterIOReal implements ShooterIO {
                 middlePosition,
                 rightVelocity,
                 rightPosition,
+                leftUnlicensedFeatureFault,
+                middleUnlicensedFeatureFault,
+                rightUnlicensedFeatureFault,
                 leftAppliedVolts,
                 middleAppliedVolts,
                 rightAppliedVolts,
@@ -116,6 +125,9 @@ public class ShooterIOReal implements ShooterIO {
                 middlePosition,
                 rightVelocity,
                 rightPosition,
+                leftUnlicensedFeatureFault,
+                middleUnlicensedFeatureFault,
+                rightUnlicensedFeatureFault,
                 leftAppliedVolts,
                 middleAppliedVolts,
                 rightAppliedVolts,
@@ -140,6 +152,9 @@ public class ShooterIOReal implements ShooterIO {
         inputs.leftMotorConnected = leftVelocity.getStatus().isOK();
         inputs.middleMotorConnected = middleVelocity.getStatus().isOK();
         inputs.rightMotorConnected = rightVelocity.getStatus().isOK();
+        inputs.leftUnlicensedFeatureFault = leftUnlicensedFeatureFault.getValue();
+        inputs.middleUnlicensedFeatureFault = middleUnlicensedFeatureFault.getValue();
+        inputs.rightUnlicensedFeatureFault = rightUnlicensedFeatureFault.getValue();
 
         inputs.velocitySetpoint = velocitySetpoint;
         inputs.requestedVelocity = velocitySetpoint;
@@ -177,10 +192,7 @@ public class ShooterIOReal implements ShooterIO {
     @Override
     public void runTorqueCurrent(double torqueCurrentAmps) {
         double output =
-                MathUtil.clamp(
-                        torqueCurrentAmps,
-                        0.0,
-                        ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS.get());
+                MathUtil.clamp(torqueCurrentAmps, 0.0, ShooterConstants.getPeakTorqueCurrentAmps());
         leftMotor.setControl(torqueCurrentRequest.withOutput(output));
         middleMotor.setControl(torqueCurrentRequest.withOutput(output));
         rightMotor.setControl(torqueCurrentRequest.withOutput(output));
@@ -230,14 +242,12 @@ public class ShooterIOReal implements ShooterIO {
         config.MotorOutput.Inverted = inverted;
         config.MotorOutput.PeakForwardDutyCycle = 1.0;
         config.MotorOutput.PeakReverseDutyCycle = 0.0;
-        config.CurrentLimits.StatorCurrentLimit =
-                ShooterConstants.SHOOTER_STATOR_CURRENT_LIMIT_AMPS.get();
+        config.CurrentLimits.StatorCurrentLimit = ShooterConstants.getStatorCurrentLimitAmps();
         config.CurrentLimits.StatorCurrentLimitEnable = true;
         config.Feedback.SensorToMechanismRatio = ShooterConstants.SHOOTER_GEAR_RATIO;
         applyShooterGains(config.Slot0, flywheel);
-        config.Slot1.kP = ShooterConstants.BANG_BANG_KP.get();
-        config.TorqueCurrent.PeakForwardTorqueCurrent =
-                ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS.get();
+        config.Slot1.kP = ShooterConstants.getBangBangKp();
+        config.TorqueCurrent.PeakForwardTorqueCurrent = ShooterConstants.getPeakTorqueCurrentAmps();
         config.TorqueCurrent.PeakReverseTorqueCurrent = 0.0;
         motor.getConfigurator().apply(config);
     }
@@ -248,28 +258,29 @@ public class ShooterIOReal implements ShooterIO {
         motor.getConfigurator().apply(slot0);
 
         var slot1 = new Slot1Configs();
-        slot1.kP = ShooterConstants.BANG_BANG_KP.get();
+        slot1.kP = ShooterConstants.getBangBangKp();
         motor.getConfigurator().apply(slot1);
 
         var currentLimits = new com.ctre.phoenix6.configs.CurrentLimitsConfigs();
-        currentLimits.StatorCurrentLimit = ShooterConstants.SHOOTER_STATOR_CURRENT_LIMIT_AMPS.get();
+        currentLimits.StatorCurrentLimit = ShooterConstants.getStatorCurrentLimitAmps();
         currentLimits.StatorCurrentLimitEnable = true;
         motor.getConfigurator().apply(currentLimits);
 
         var torqueCurrent = new com.ctre.phoenix6.configs.TorqueCurrentConfigs();
-        torqueCurrent.PeakForwardTorqueCurrent =
-                ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS.get();
+        torqueCurrent.PeakForwardTorqueCurrent = ShooterConstants.getPeakTorqueCurrentAmps();
         torqueCurrent.PeakReverseTorqueCurrent = 0.0;
         motor.getConfigurator().apply(torqueCurrent);
     }
 
     private static void applyShooterGains(Slot0Configs slot0, ShooterConstants.Flywheel flywheel) {
-        slot0.kS = flywheel.kS.get();
-        slot0.kV = flywheel.kV.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
-        slot0.kA = flywheel.kA.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
-        slot0.kP = flywheel.kP.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
-        slot0.kI = flywheel.kI.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
-        slot0.kD = flywheel.kD.get() * ShooterConstants.SHOOTER_GEAR_RATIO;
+        // VelocityVoltage gains produce volts. SensorToMechanismRatio already makes the
+        // controller's velocity/error mechanism-side, so do not scale gains by gear ratio.
+        slot0.kS = flywheel.kS.getClamped(0.0, 12.0);
+        slot0.kV = flywheel.kV.getClamped(0.0, 12.0);
+        slot0.kA = flywheel.kA.getClamped(0.0, 12.0);
+        slot0.kP = flywheel.kP.getClamped(0.0, 100.0);
+        slot0.kI = flywheel.kI.getClamped(0.0, 100.0);
+        slot0.kD = flywheel.kD.getClamped(0.0, 100.0);
     }
 
     private static Optional<Servo> createHoodServo(int pwmChannel) {

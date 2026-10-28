@@ -246,10 +246,16 @@ public class Superstructure extends SubsystemBase {
      * Temporarily gives a tuning command exclusive control of the shooter; feeding stays stopped.
      */
     public void setShooterTuningOverride(boolean enabled) {
+        boolean wasEnabled = shooterTuningOverride;
         shooterTuningOverride = enabled;
         if (enabled) {
             feedingLatched = false;
             shooterReadyTimestamp = 0.0;
+            shooter.setLaunchActive(false);
+            indexer.stop();
+            if (!wasEnabled) {
+                shooter.stop();
+            }
         }
     }
 

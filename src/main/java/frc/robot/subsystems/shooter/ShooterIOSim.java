@@ -83,13 +83,14 @@ public class ShooterIOSim implements ShooterIO {
 
     @Override
     public void runTorqueCurrent(double torqueCurrentAmps) {
+        double peakTorqueCurrentAmps = ShooterConstants.getPeakTorqueCurrentAmps();
         double voltage =
-                MathUtil.clamp(
-                        torqueCurrentAmps
-                                / ShooterConstants.SHOOTER_PEAK_TORQUE_CURRENT_AMPS.get()
-                                * MAX_VOLTAGE,
-                        0.0,
-                        MAX_VOLTAGE);
+                peakTorqueCurrentAmps <= 0.0
+                        ? 0.0
+                        : MathUtil.clamp(
+                                torqueCurrentAmps / peakTorqueCurrentAmps * MAX_VOLTAGE,
+                                0.0,
+                                MAX_VOLTAGE);
         leftAppliedVolts = voltage;
         middleAppliedVolts = voltage;
         rightAppliedVolts = voltage;

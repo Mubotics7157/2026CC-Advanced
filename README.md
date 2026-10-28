@@ -285,6 +285,8 @@ Most mechanism gains are `LoggedTunableNumber`s, meaning they can be edited live
 
 ---
 
+Shooter phase behavior, telemetry, and the recommended hooded-shooter tuning order are documented in [the shooter phase tuning guide](docs/shooter-phase-tuning.md).
+
 ## Package Structure
 
 ```

@@ -22,6 +22,9 @@ public interface ShooterIO {
         public boolean leftMotorConnected = true;
         public boolean middleMotorConnected = true;
         public boolean rightMotorConnected = true;
+        public boolean leftUnlicensedFeatureFault = false;
+        public boolean middleUnlicensedFeatureFault = false;
+        public boolean rightUnlicensedFeatureFault = false;
 
         public double velocitySetpoint = 0.0;
         public double requestedVelocity = 0.0;

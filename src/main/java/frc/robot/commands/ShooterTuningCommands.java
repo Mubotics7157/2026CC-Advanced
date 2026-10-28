@@ -11,6 +11,7 @@ import frc.robot.subsystems.superstructure.Superstructure.Goal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
+import org.littletonrobotics.junction.Logger;
 
 /** Dashboard commands for flywheel setpoint tuning and feedforward characterization. */
 public final class ShooterTuningCommands {
@@ -24,12 +25,13 @@ public final class ShooterTuningCommands {
                         () -> {
                             superstructure.setShooterTuningOverride(true);
                             superstructure.setGoal(Goal.IDLE);
+                            shooter.setLaunchActive(false);
                             shooter.setVelocity(
                                     Units.rotationsPerMinuteToRadiansPerSecond(
-                                            ShooterConstants.TUNING_VELOCITY_RPM.get()));
+                                            ShooterConstants.getTuningVelocityRPM()));
                             shooter.setHoodAngle(
                                     Units.degreesToRadians(
-                                            ShooterConstants.TUNING_HOOD_ANGLE_DEG.get()));
+                                            ShooterConstants.getTuningHoodAngleDegrees()));
                         },
                         shooter,
                         superstructure)
@@ -48,9 +50,10 @@ public final class ShooterTuningCommands {
                         () -> {
                             superstructure.setShooterTuningOverride(true);
                             superstructure.setGoal(Goal.IDLE);
+                            shooter.setLaunchActive(false);
                             shooter.setHoodAngle(
                                     Units.degreesToRadians(
-                                            ShooterConstants.TUNING_HOOD_ANGLE_DEG.get()));
+                                            ShooterConstants.getTuningHoodAngleDegrees()));
                         },
                         shooter,
                         superstructure)
@@ -85,14 +88,24 @@ public final class ShooterTuningCommands {
                                                             timer.get()
                                                                     * characterizationRampRate()));
                                     shooter.runVoltage(voltage);
-                                    leftVelocity.add(Math.abs(shooter.getLeftVelocityRadPerSec()));
+                                    leftVelocity.add(
+                                            Math.abs(
+                                                    Units.radiansToRotations(
+                                                            shooter.getLeftVelocityRadPerSec())));
                                     middleVelocity.add(
-                                            Math.abs(shooter.getMiddleVelocityRadPerSec()));
+                                            Math.abs(
+                                                    Units.radiansToRotations(
+                                                            shooter.getMiddleVelocityRadPerSec())));
                                     rightVelocity.add(
-                                            Math.abs(shooter.getRightVelocityRadPerSec()));
-                                    leftAppliedVoltage.add(shooter.getLeftAppliedVoltage());
-                                    middleAppliedVoltage.add(shooter.getMiddleAppliedVoltage());
-                                    rightAppliedVoltage.add(shooter.getRightAppliedVoltage());
+                                            Math.abs(
+                                                    Units.radiansToRotations(
+                                                            shooter.getRightVelocityRadPerSec())));
+                                    leftAppliedVoltage.add(
+                                            Math.abs(shooter.getLeftAppliedVoltage()));
+                                    middleAppliedVoltage.add(
+                                            Math.abs(shooter.getMiddleAppliedVoltage()));
+                                    rightAppliedVoltage.add(
+                                            Math.abs(shooter.getRightAppliedVoltage()));
                                 },
                                 shooter,
                                 superstructure)
@@ -113,6 +126,7 @@ public final class ShooterTuningCommands {
                                     rightAppliedVoltage.clear();
                                     superstructure.setShooterTuningOverride(true);
                                     superstructure.setGoal(Goal.IDLE);
+                                    shooter.setLaunchActive(false);
                                     shooter.stop();
                                 },
                                 shooter,
@@ -137,45 +151,42 @@ public final class ShooterTuningCommands {
     }
 
     private static double maxCharacterizationVolts() {
-        double requestedVolts = ShooterConstants.CHARACTERIZATION_MAX_VOLTS.get();
-        if (!Double.isFinite(requestedVolts)) {
-            return 0.0;
-        }
-        return Math.min(HARD_MAX_CHARACTERIZATION_VOLTS, Math.max(0.0, requestedVolts));
+        return Math.min(
+                HARD_MAX_CHARACTERIZATION_VOLTS, ShooterConstants.getCharacterizationMaxVolts());
     }
 
     private static double characterizationRampRate() {
-        double requestedRate = ShooterConstants.CHARACTERIZATION_RAMP_VOLTS_PER_SEC.get();
-        if (!Double.isFinite(requestedRate)) {
-            return 0.5;
-        }
-        return Math.max(0.05, requestedRate);
+        return ShooterConstants.getCharacterizationRampRateVoltsPerSec();
     }
 
     private static void printFit(
             String wheel, List<Double> velocitySamples, List<Double> voltageSamples) {
-        int count = Math.min(velocitySamples.size(), voltageSamples.size());
+        int count = 0;
+        double sumX = 0.0;
+        double sumY = 0.0;
+        double sumXY = 0.0;
+        double sumX2 = 0.0;
+        for (int i = 0; i < Math.min(velocitySamples.size(), voltageSamples.size()); i++) {
+            double x = velocitySamples.get(i);
+            double y = voltageSamples.get(i);
+            if (!Double.isFinite(x) || !Double.isFinite(y)) {
+                continue;
+            }
+            count++;
+            sumX += x;
+            sumY += y;
+            sumXY += x * y;
+            sumX2 += x * x;
+        }
+
         if (count < 10) {
             System.out.println(
                     "Shooter "
                             + wheel
                             + " kS/kV characterization failed: only "
                             + count
-                            + " samples");
+                            + " valid samples");
             return;
-        }
-
-        double sumX = 0.0;
-        double sumY = 0.0;
-        double sumXY = 0.0;
-        double sumX2 = 0.0;
-        for (int i = 0; i < count; i++) {
-            double x = velocitySamples.get(i);
-            double y = voltageSamples.get(i);
-            sumX += x;
-            sumY += y;
-            sumXY += x * y;
-            sumX2 += x * x;
         }
 
         double denominator = count * sumX2 - sumX * sumX;
@@ -187,6 +198,13 @@ public final class ShooterTuningCommands {
 
         double kS = (sumY * sumX2 - sumX * sumXY) / denominator;
         double kV = (count * sumXY - sumX * sumY) / denominator;
+        if (!Double.isFinite(kS) || !Double.isFinite(kV)) {
+            System.out.println("Shooter " + wheel + " kS/kV characterization failed: invalid fit");
+            return;
+        }
+        Logger.recordOutput("Shooter/Characterization/" + wheel + "/kS", kS);
+        Logger.recordOutput("Shooter/Characterization/" + wheel + "/kV", kV);
+        Logger.recordOutput("Shooter/Characterization/" + wheel + "/SampleCount", count);
         DecimalFormat format = new DecimalFormat("0.00000");
         System.out.println(
                 "Shooter "
@@ -195,7 +213,7 @@ public final class ShooterTuningCommands {
                         + format.format(kS)
                         + ", kV="
                         + format.format(kV)
-                        + " (V per rad/s), samples="
+                        + " (V per rotations/s), samples="
                         + count);
     }
 }

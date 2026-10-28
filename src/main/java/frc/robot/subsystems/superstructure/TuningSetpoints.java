@@ -1,6 +1,7 @@
 package frc.robot.subsystems.superstructure;
 
 import edu.wpi.first.math.util.Units;
+import frc.robot.subsystems.shooter.ShooterConstants;
 import frc.robot.util.LoggedTunableNumber;
 
 /** Dashboard targets applied to all mechanisms while {@code Constants.kTuningMode} is enabled. */
@@ -21,10 +22,14 @@ public final class TuningSetpoints {
             new LoggedTunableNumber("Tuning/Shooter/HoodAngleDeg", 35.0);
 
     public static double shooterVelocityRadPerSec() {
-        return Units.rotationsPerMinuteToRadiansPerSecond(SHOOTER_RPM.get());
+        return Units.rotationsPerMinuteToRadiansPerSecond(
+                SHOOTER_RPM.getClamped(0.0, ShooterConstants.getMaxVelocityRPM()));
     }
 
     public static double hoodAngleRad() {
-        return Units.degreesToRadians(SHOOTER_HOOD_DEG.get());
+        return Units.degreesToRadians(
+                SHOOTER_HOOD_DEG.getClamped(
+                        Units.radiansToDegrees(ShooterConstants.HOOD_MIN_ANGLE_RAD),
+                        Units.radiansToDegrees(ShooterConstants.HOOD_MAX_ANGLE_RAD)));
     }
 }

@@ -52,10 +52,11 @@ public final class ShooterConstants {
     public static final CANBus CAN_BUS = new CANBus("rio");
 
     public static final double SHOOTER_GEAR_RATIO = 1.0;
+    public static final double MAX_SHOOTER_CURRENT_AMPS = 120.0;
     public static final LoggedTunableNumber SHOOTER_STATOR_CURRENT_LIMIT_AMPS =
-            new LoggedTunableNumber("Shooter/CurrentLimit/StatorAmps", 120.0);
+            new LoggedTunableNumber("Shooter/CurrentLimit/StatorAmps", MAX_SHOOTER_CURRENT_AMPS);
     public static final LoggedTunableNumber SHOOTER_PEAK_TORQUE_CURRENT_AMPS =
-            new LoggedTunableNumber("Shooter/CurrentLimit/TorqueAmps", 120.0);
+            new LoggedTunableNumber("Shooter/CurrentLimit/TorqueAmps", MAX_SHOOTER_CURRENT_AMPS);
     public static final LoggedTunableNumber VELOCITY_TOLERANCE_RPM =
             new LoggedTunableNumber("Shooter/Tuning/VelocityToleranceRPM", 100.0);
     public static final LoggedTunableNumber MAX_VELOCITY_RPM =
@@ -113,16 +114,84 @@ public final class ShooterConstants {
     public static final LoggedTunableNumber BANG_BANG_KP =
             new LoggedTunableNumber("Shooter/BangBang/kP", 999999.0);
 
-    public static final LoggedTunableNumber STARTUP_READY_RPM =
-            new LoggedTunableNumber("Shooter/Phase/StartupReadyRPM", 80.0);
-    public static final LoggedTunableNumber RECOVERY_READY_RPM =
-            new LoggedTunableNumber("Shooter/Phase/RecoveryReadyRPM", 60.0);
+    public static final LoggedTunableNumber STARTUP_READY_TOLERANCE_RPM =
+            new LoggedTunableNumber("Shooter/Phase/StartupReadyToleranceRPM", 80.0);
+    public static final LoggedTunableNumber RECOVERY_READY_TOLERANCE_RPM =
+            new LoggedTunableNumber("Shooter/Phase/RecoveryReadyToleranceRPM", 60.0);
     public static final LoggedTunableNumber BALL_ENTRY_DROP_RPM =
             new LoggedTunableNumber("Shooter/Phase/BallEntryDropRPM", 120.0);
+    public static final LoggedTunableNumber LAUNCH_TO_BALL_DELAY_SEC =
+            new LoggedTunableNumber("Shooter/Phase/LaunchToBallDelaySec", 0.0);
     public static final LoggedTunableNumber BALL_PHASE_DURATION_SEC =
             new LoggedTunableNumber("Shooter/Phase/BallDurationSec", 0.06);
     public static final LoggedTunableNumber BALL_TORQUE_CURRENT_AMPS =
             new LoggedTunableNumber("Shooter/Phase/BallTorqueCurrentAmps", 29.0);
+
+    public static double getStatorCurrentLimitAmps() {
+        return SHOOTER_STATOR_CURRENT_LIMIT_AMPS.getClamped(1.0, MAX_SHOOTER_CURRENT_AMPS);
+    }
+
+    public static double getPeakTorqueCurrentAmps() {
+        return SHOOTER_PEAK_TORQUE_CURRENT_AMPS.getClamped(0.0, MAX_SHOOTER_CURRENT_AMPS);
+    }
+
+    public static double getBangBangKp() {
+        return BANG_BANG_KP.getClamped(1.0, 1e6);
+    }
+
+    public static double getMaxVelocityRPM() {
+        return MAX_VELOCITY_RPM.getClamped(1.0, 6000.0);
+    }
+
+    public static double getVelocityToleranceRPM() {
+        return VELOCITY_TOLERANCE_RPM.getClamped(1.0, 500.0);
+    }
+
+    public static double getStartupReadyToleranceRPM(double targetRPM) {
+        double requestedTolerance = STARTUP_READY_TOLERANCE_RPM.getClamped(1.0, 1000.0);
+        return Math.min(requestedTolerance, Math.max(1.0, targetRPM * 0.25));
+    }
+
+    public static double getRecoveryReadyToleranceRPM(double targetRPM) {
+        double requestedTolerance = RECOVERY_READY_TOLERANCE_RPM.getClamped(1.0, 1000.0);
+        return Math.min(requestedTolerance, Math.max(1.0, targetRPM * 0.25));
+    }
+
+    public static double getBallEntryDropRPM() {
+        return BALL_ENTRY_DROP_RPM.getClamped(1.0, 2000.0);
+    }
+
+    public static double getLaunchToBallDelaySeconds() {
+        return LAUNCH_TO_BALL_DELAY_SEC.getClamped(0.0, 0.5);
+    }
+
+    public static double getBallPhaseDurationSeconds() {
+        return BALL_PHASE_DURATION_SEC.getClamped(0.02, 0.5);
+    }
+
+    public static double getBallTorqueCurrentAmps() {
+        return Math.min(
+                BALL_TORQUE_CURRENT_AMPS.getClamped(0.0, MAX_SHOOTER_CURRENT_AMPS),
+                getPeakTorqueCurrentAmps());
+    }
+
+    public static double getTuningVelocityRPM() {
+        return TUNING_VELOCITY_RPM.getClamped(0.0, getMaxVelocityRPM());
+    }
+
+    public static double getTuningHoodAngleDegrees() {
+        return TUNING_HOOD_ANGLE_DEG.getClamped(
+                Units.radiansToDegrees(HOOD_MIN_ANGLE_RAD),
+                Units.radiansToDegrees(HOOD_MAX_ANGLE_RAD));
+    }
+
+    public static double getCharacterizationRampRateVoltsPerSec() {
+        return CHARACTERIZATION_RAMP_VOLTS_PER_SEC.getClamped(0.05, 2.0);
+    }
+
+    public static double getCharacterizationMaxVolts() {
+        return CHARACTERIZATION_MAX_VOLTS.getClamped(0.0, 6.0);
+    }
 
     public static final double STATUS_SIGNAL_UPDATE_FREQUENCY = 50.0;
     public static final double SHOOTER_MOI = 0.003;
