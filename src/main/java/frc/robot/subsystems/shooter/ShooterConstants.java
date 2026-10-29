@@ -26,10 +26,10 @@ public final class ShooterConstants {
 
         Flywheel(String name) {
             String key = "Shooter/Flywheels/" + name + "/";
-            kS = new LoggedTunableNumber(key + "kS", 0.0);
-            kV = new LoggedTunableNumber(key + "kV", 0.12);
+            kS = new LoggedTunableNumber(key + "kS", 0.90165);
+            kV = new LoggedTunableNumber(key + "kV", 0.13386);
             kA = new LoggedTunableNumber(key + "kA", 0.0);
-            kP = new LoggedTunableNumber(key + "kP", 0.5);
+            kP = new LoggedTunableNumber(key + "kP", 12.5);
             kI = new LoggedTunableNumber(key + "kI", 2.0);
             kD = new LoggedTunableNumber(key + "kD", 0.0);
         }
