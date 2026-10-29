@@ -149,11 +149,6 @@ public class Superstructure extends SubsystemBase {
                 shooter.stop();
                 break;
             case SHOOTING:
-                // The forebar is used as a controlled agitator throughout a shot. It always
-                // returns to the deployed position when this goal ends.
-                commandShootingAgitation();
-                intake.setRollerVelocity(
-                        SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                 shooter.setVelocity(shootingVelocityRadPerSec);
                 shooter.setHoodAngle(shootingHoodAngleRad);
 
@@ -181,10 +176,18 @@ public class Superstructure extends SubsystemBase {
                 boolean shouldFeed = ownHubActive && (feedingLatched || dumbModeEnabled);
                 shooter.setLaunchActive(shouldFeed);
                 if (shouldFeed) {
+                    // Only use the intake to agitate balls once feeding has actually started.
+                    // In normal mode this follows the shooter/aim readiness gate; dumb mode
+                    // reaches this branch as soon as its feed is enabled.
+                    commandShootingAgitation();
+                    intake.setRollerVelocity(
+                            SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
                     indexer.setConveyorVelocity(
                             SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
                     indexer.setFeederVelocity(SuperstructureConstants.FEEDER_VELOCITY_RAD_PER_SEC);
                 } else {
+                    intake.deployArm();
+                    intake.stopRoller();
                     indexer.stop();
                 }
                 break;
