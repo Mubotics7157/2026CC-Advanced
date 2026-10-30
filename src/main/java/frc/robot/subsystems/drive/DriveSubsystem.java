@@ -37,6 +37,7 @@ import edu.wpi.first.wpilibj.Threads;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants;
@@ -44,6 +45,8 @@ import frc.robot.RobotState;
 import frc.robot.lib.time.RobotTime;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
 import frc.robot.utils.simulations.MapleSimSwerveDrivetrain;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
@@ -61,9 +64,6 @@ public class DriveSubsystem extends SubsystemBase {
         "FrontLeft", "FrontRight", "BackLeft", "BackRight"
     };
 
-    /** Number of modules aggregated for the SysId log motor (the drivetrain has four). */
-    private static final int SYSID_MAX_MODULES = 4;
-
     /**
      * Volts-per-second ramp for the quasistatic SysId test. Slower (0.5 V/s) yields a cleaner kS/kV
      * fit; the WPILib default of 1 V/s is too fast for a 95 lb drivetrain and saturates too quickly
@@ -77,14 +77,15 @@ public class DriveSubsystem extends SubsystemBase {
     /** Hard timeout for every SysId test so a runaway test can never exceed the field. */
     private static final double SYSID_TIMEOUT_SECONDS = 10.0;
 
-    /**
-     * Time to hold the drivetrain at zero voltage with the modules pointed forward before a SysId
-     * test ramps. {@link com.ctre.phoenix6.swerve.SwerveRequest.SysIdSwerveTranslation} commands
-     * every module to 0 rad, which can take a few hundred milliseconds from a random power-on
-     * angle. Without this dwell, the ramp applies voltage while the wheels are still slewing and
-     * the robot lurches sideways.
-     */
-    private static final double SYSID_STEER_SETTLE_SECONDS = 1.0;
+    private static final double SYSID_READY_TIMEOUT_SECONDS = 3.0;
+    private static final double SYSID_TRANSLATION_ANGLE_TOLERANCE_RAD = Math.toRadians(4.0);
+    private static final double SYSID_MAX_WHEEL_SPEED_MPS = 0.05;
+    private static final double SYSID_MAX_STEER_SPEED_RAD_PER_SEC = 0.10;
+    private static final double SYSID_MAX_YAW_SPEED_RAD_PER_SEC = 0.08;
+    private static final double SYSID_ROTATION_RAMP_RAD_PER_SEC_SQ = 0.15;
+    private static final double SYSID_ROTATION_STEP_RAD_PER_SEC = 0.5;
+    private static final double SYSID_MIN_LOGGED_TEST_SECONDS = 3.0;
+    private static final double SYSID_LOG_IDLE_TIMEOUT_SECONDS = 120.0;
 
     private final DriveIO io;
 
@@ -95,6 +96,17 @@ public class DriveSubsystem extends SubsystemBase {
     private final RobotState robotState;
 
     private final SysIdRoutine sysId;
+    private final SysIdRoutine steerSysId;
+    private final SysIdRoutine rotationSysId;
+
+    /** SysId represents CTRE's requested rotational rate in the log's voltage field. */
+    private volatile double sysIdRotationRateRadPerSec;
+    private final Timer sysIdLogIdleTimer = new Timer();
+    private final Timer sysIdTestTimer = new Timer();
+    private final Set<String> completedSysIdTests = new HashSet<>();
+    private String sysIdLogMechanism;
+    private String activeSysIdState;
+    private boolean sysIdSignalLoggerActive;
 
     private Controller controller;
 
@@ -131,50 +143,55 @@ public class DriveSubsystem extends SubsystemBase {
                                 Volts.of(SYSID_RAMP_VOLTS_PER_SEC).per(Seconds),
                                 Volts.of(SYSID_STEP_VOLTS),
                                 Seconds.of(SYSID_TIMEOUT_SECONDS),
-                                state -> {
-                                    // SignalLogger produces the .hoot files the SysId tool reads;
-                                    // only run it while a test is active so we don't fill the disk
-                                    // with unrelated data.
-                                    if (state == SysIdRoutineLog.State.kNone) {
-                                        SignalLogger.stop();
-                                    } else {
-                                        SignalLogger.start();
-                                    }
-                                    Logger.recordOutput("Drive/SysId/State", state.toString());
-                                }),
+                                this::recordSysIdState),
                         new SysIdRoutine.Mechanism(
                                 voltage -> io.setDriveOpenLoopVoltage(voltage),
-                                log -> {
-                                    // Log the drive motors under the SysId-standard keys so the AK
-                                    // .wpilog can also be analyzed by SysId (in addition to the
-                                    // CTRE .hoot log).
-                                    SwerveModuleState[] states = inputs.moduleStates;
-                                    double wheelRadius = getWheelRadiusMeters();
-                                    double position = 0.0;
-                                    double velocity = 0.0;
-                                    double appliedVolts = 0.0;
-                                    int n =
-                                            Math.min(
-                                                    Math.min(SYSID_MAX_MODULES, states.length),
-                                                    Math.min(
-                                                            inputs.modulePositions.length,
-                                                            inputs.moduleDriveAppliedVolts.length));
-                                    if (n > 0) {
-                                        for (int i = 0; i < n; i++) {
-                                            position +=
-                                                    inputs.modulePositions[i].distanceMeters
-                                                            / wheelRadius;
-                                            velocity +=
-                                                    states[i].speedMetersPerSecond / wheelRadius;
-                                            appliedVolts += inputs.moduleDriveAppliedVolts[i];
-                                        }
-                                        log.motor("drive")
-                                                .voltage(Volts.of(appliedVolts / n))
-                                                .angularPosition(Radians.of(position / n))
-                                                .angularVelocity(RadiansPerSecond.of(velocity / n));
-                                    }
+                                this::logDriveSysId,
+                                this,
+                                "drive"));
+
+        steerSysId =
+                new SysIdRoutine(
+                        new SysIdRoutine.Config(
+                                Volts.of(SYSID_RAMP_VOLTS_PER_SEC).per(Seconds),
+                                Volts.of(4.0),
+                                Seconds.of(SYSID_TIMEOUT_SECONDS),
+                                this::recordSysIdState),
+                        new SysIdRoutine.Mechanism(
+                                io::setSteerOpenLoopVoltage,
+                                this::logSteerSysId,
+                                this,
+                                "steer"));
+
+        // CTRE's SysIdSwerveRotation request takes angular rate rather than voltage. Following
+        // CTRE's SysId workflow, that rate is stored in SysId's voltage field; yaw and yaw rate
+        // are logged in radians and radians/second so the desktop tool needs no unit scaling.
+        rotationSysId =
+                new SysIdRoutine(
+                        new SysIdRoutine.Config(
+                                Volts.of(SYSID_ROTATION_RAMP_RAD_PER_SEC_SQ).per(Seconds),
+                                Volts.of(SYSID_ROTATION_STEP_RAD_PER_SEC),
+                                Seconds.of(SYSID_TIMEOUT_SECONDS),
+                                this::recordSysIdState),
+                        new SysIdRoutine.Mechanism(
+                                voltage -> {
+                                    sysIdRotationRateRadPerSec = voltage.in(Volts);
+                                    io.setRobotRotationRate(
+                                            RadiansPerSecond.of(sysIdRotationRateRadPerSec));
+                                    SignalLogger.writeDouble(
+                                            "RotationalRate",
+                                            sysIdRotationRateRadPerSec,
+                                            "rad_per_s");
                                 },
-                                this));
+                                log ->
+                                        log.motor("rotation")
+                                                .voltage(Volts.of(sysIdRotationRateRadPerSec))
+                                                .angularPosition(Radians.of(inputs.gyroYawRad))
+                                                .angularVelocity(
+                                                        RadiansPerSecond.of(
+                                                                inputs.gyroYawRadPerSec)),
+                                this,
+                                "rotation"));
     }
 
     private ChassisSpeeds applyDeadband(ChassisSpeeds input) {
@@ -377,6 +394,7 @@ public class DriveSubsystem extends SubsystemBase {
         double startTime = RobotTime.getTimestampSeconds();
         io.updateInputs(inputs);
         Logger.processInputs("Drive", inputs);
+        stopSysIdLoggerAfterIdle();
 
         telemetry.telemeterize(inputs.pose, inputs.odometryPeriod, inputs.moduleStates);
 
@@ -521,22 +539,255 @@ public class DriveSubsystem extends SubsystemBase {
     /**
      * Returns a command to run a quasistatic SysId test in the requested direction.
      *
-     * <p>The initial zero-voltage, modules-forward dwell ensures all four wheels are aligned and
-     * the drivetrain is stationary before the ramp begins.
+     * <p>The routine holds the drive at zero volts while Phoenix points the modules forward. The
+     * voltage ramp starts only after measured module alignment and zero wheel/steer speed.
      */
     public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
-        return run(() -> io.setDriveOpenLoopVoltage(Volts.zero()))
-                .withTimeout(SYSID_STEER_SETTLE_SECONDS)
-                .andThen(sysId.quasistatic(direction))
-                .withName("Drive SysId Quasistatic");
+        return runPreparedSysId(
+                        () -> io.setDriveOpenLoopVoltage(Volts.zero()),
+                        this::areTranslationModulesReady,
+                        () -> sysId.quasistatic(direction),
+                        "translation")
+                .withName("Drive SysId Quasistatic " + direction);
     }
 
     /** Returns a command to run a dynamic SysId test in the requested direction. */
     public Command sysIdDynamic(SysIdRoutine.Direction direction) {
-        return run(() -> io.setDriveOpenLoopVoltage(Volts.zero()))
-                .withTimeout(SYSID_STEER_SETTLE_SECONDS)
-                .andThen(sysId.dynamic(direction))
-                .withName("Drive SysId Dynamic");
+        return runPreparedSysId(
+                        () -> io.setDriveOpenLoopVoltage(Volts.zero()),
+                        this::areTranslationModulesReady,
+                        () -> sysId.dynamic(direction),
+                        "translation")
+                .withName("Drive SysId Dynamic " + direction);
+    }
+
+    public Command sysIdSteerQuasistatic(SysIdRoutine.Direction direction) {
+        return runPreparedSysId(
+                        () -> {
+                            io.setDriveOpenLoopVoltage(Volts.zero());
+                            io.setSteerOpenLoopVoltage(Volts.zero());
+                        },
+                        this::areAllModulesStopped,
+                        () -> steerSysId.quasistatic(direction),
+                        "steer")
+                .withName("Steer SysId Quasistatic " + direction);
+    }
+
+    public Command sysIdSteerDynamic(SysIdRoutine.Direction direction) {
+        return runPreparedSysId(
+                        () -> {
+                            io.setDriveOpenLoopVoltage(Volts.zero());
+                            io.setSteerOpenLoopVoltage(Volts.zero());
+                        },
+                        this::areAllModulesStopped,
+                        () -> steerSysId.dynamic(direction),
+                        "steer")
+                .withName("Steer SysId Dynamic " + direction);
+    }
+
+    public Command sysIdRotationQuasistatic(SysIdRoutine.Direction direction) {
+        return runPreparedSysId(
+                        () -> io.setRobotRotationRate(RadiansPerSecond.zero()),
+                        this::areAllModulesStopped,
+                        () -> rotationSysId.quasistatic(direction),
+                        "rotation")
+                .withName("Rotation SysId Quasistatic " + direction);
+    }
+
+    public Command sysIdRotationDynamic(SysIdRoutine.Direction direction) {
+        return runPreparedSysId(
+                        () -> io.setRobotRotationRate(RadiansPerSecond.zero()),
+                        this::areAllModulesStopped,
+                        () -> rotationSysId.dynamic(direction),
+                        "rotation")
+                .withName("Rotation SysId Dynamic " + direction);
+    }
+
+    private Command runPreparedSysId(
+            Runnable prepare,
+            Supplier<Boolean> ready,
+            Supplier<Command> testFactory,
+            String mechanismName) {
+        Command settle =
+                run(prepare).until(ready::get).withTimeout(SYSID_READY_TIMEOUT_SECONDS);
+        return settle
+                .andThen(
+                        Commands.defer(
+                                () -> {
+                                    if (!ready.get()) {
+                                        String state = mechanismName + "-not-ready";
+                                        Logger.recordOutput("Drive/SysId/State", state);
+                                        return Commands.none();
+                                    }
+                                    beginSysIdLogSession(mechanismName);
+                                    return testFactory.get();
+                                },
+                                Set.of(this)))
+                .finallyDo(interrupted -> prepare.run());
+    }
+
+    private boolean areTranslationModulesReady() {
+        if (inputs.moduleStates.length < SYSID_MODULE_NAMES.length
+                || inputs.moduleSteerVelocitiesRadPerSec.length < SYSID_MODULE_NAMES.length) {
+            return false;
+        }
+        for (int i = 0; i < SYSID_MODULE_NAMES.length; i++) {
+            double angleError =
+                    Math.abs(
+                            Math.IEEEremainder(
+                                    inputs.moduleStates[i].angle.getRadians(), 2.0 * Math.PI));
+            if (angleError > SYSID_TRANSLATION_ANGLE_TOLERANCE_RAD
+                    || Math.abs(inputs.moduleStates[i].speedMetersPerSecond)
+                            > SYSID_MAX_WHEEL_SPEED_MPS
+                    || Math.abs(inputs.moduleSteerVelocitiesRadPerSec[i])
+                            > SYSID_MAX_STEER_SPEED_RAD_PER_SEC) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean areAllModulesStopped() {
+        if (inputs.moduleStates.length < SYSID_MODULE_NAMES.length
+                || inputs.moduleSteerVelocitiesRadPerSec.length < SYSID_MODULE_NAMES.length
+                || Math.abs(inputs.gyroYawRadPerSec) > SYSID_MAX_YAW_SPEED_RAD_PER_SEC) {
+            return false;
+        }
+        for (int i = 0; i < SYSID_MODULE_NAMES.length; i++) {
+            if (Math.abs(inputs.moduleStates[i].speedMetersPerSecond)
+                            > SYSID_MAX_WHEEL_SPEED_MPS
+                    || Math.abs(inputs.moduleSteerVelocitiesRadPerSec[i])
+                            > SYSID_MAX_STEER_SPEED_RAD_PER_SEC) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void recordSysIdState(SysIdRoutineLog.State state) {
+        String stateName = state.toString();
+        if (state == SysIdRoutineLog.State.kNone) {
+            if (sysIdSignalLoggerActive) {
+                SignalLogger.writeString("state", stateName);
+                if (activeSysIdState != null) {
+                    if (sysIdTestTimer.hasElapsed(SYSID_MIN_LOGGED_TEST_SECONDS)) {
+                        completedSysIdTests.add(sysIdLogMechanism + "/" + activeSysIdState);
+                    } else {
+                        closeSysIdLogSession("test-too-short");
+                    }
+                }
+                activeSysIdState = null;
+                sysIdTestTimer.stop();
+                if (sysIdSignalLoggerActive) {
+                    if (hasAllFourTestsForCurrentMechanism()) {
+                        closeSysIdLogSession("complete");
+                    } else {
+                        sysIdLogIdleTimer.restart();
+                    }
+                }
+            }
+        } else {
+            if (activeSysIdState == null
+                    && sysIdLogMechanism != null
+                    && completedSysIdTests.contains(sysIdLogMechanism + "/" + stateName)) {
+                String mechanismName = sysIdLogMechanism;
+                closeSysIdLogSession("duplicate-test");
+                beginSysIdLogSession(mechanismName);
+            }
+            if (!sysIdSignalLoggerActive) {
+                SignalLogger.start();
+                sysIdSignalLoggerActive = true;
+            }
+            if (activeSysIdState == null) {
+                sysIdTestTimer.restart();
+            }
+            sysIdLogIdleTimer.stop();
+            activeSysIdState = stateName;
+            SignalLogger.writeString("state", stateName);
+        }
+        Logger.recordOutput("Drive/SysId/State", stateName);
+    }
+
+    private void beginSysIdLogSession(String mechanismName) {
+        if (mechanismName.equals(sysIdLogMechanism)) {
+            return;
+        }
+        if (sysIdSignalLoggerActive) {
+            closeSysIdLogSession("mechanism-changed");
+        }
+        completedSysIdTests.clear();
+        activeSysIdState = null;
+        sysIdLogMechanism = mechanismName;
+    }
+
+    private boolean hasAllFourTestsForCurrentMechanism() {
+        return sysIdLogMechanism != null
+                && completedSysIdTests.contains(sysIdLogMechanism + "/quasistatic-forward")
+                && completedSysIdTests.contains(sysIdLogMechanism + "/quasistatic-reverse")
+                && completedSysIdTests.contains(sysIdLogMechanism + "/dynamic-forward")
+                && completedSysIdTests.contains(sysIdLogMechanism + "/dynamic-reverse");
+    }
+
+    private void stopSysIdLoggerAfterIdle() {
+        if (sysIdSignalLoggerActive
+                && sysIdLogIdleTimer.hasElapsed(SYSID_LOG_IDLE_TIMEOUT_SECONDS)) {
+            closeSysIdLogSession("idle-timeout");
+        }
+    }
+
+    private void closeSysIdLogSession(String reason) {
+        if (sysIdSignalLoggerActive) {
+            SignalLogger.writeString("state", "none");
+            SignalLogger.stop();
+            sysIdSignalLoggerActive = false;
+            Logger.recordOutput("Drive/SysId/LogStopReason", reason);
+        }
+        sysIdLogIdleTimer.stop();
+        sysIdLogIdleTimer.reset();
+        sysIdTestTimer.stop();
+        sysIdTestTimer.reset();
+        activeSysIdState = null;
+        sysIdLogMechanism = null;
+        completedSysIdTests.clear();
+    }
+
+    private void logDriveSysId(SysIdRoutineLog log) {
+        int count =
+                Math.min(
+                        SYSID_MODULE_NAMES.length,
+                        Math.min(
+                                inputs.moduleStates.length,
+                                Math.min(
+                                        inputs.modulePositions.length,
+                                        inputs.moduleDriveAppliedVolts.length)));
+        double wheelRadius = getWheelRadiusMeters();
+        for (int i = 0; i < count; i++) {
+            log.motor("drive" + SYSID_MODULE_NAMES[i])
+                    .voltage(Volts.of(inputs.moduleDriveAppliedVolts[i]))
+                    .angularPosition(
+                            Radians.of(inputs.modulePositions[i].distanceMeters / wheelRadius))
+                    .angularVelocity(
+                            RadiansPerSecond.of(
+                                    inputs.moduleStates[i].speedMetersPerSecond / wheelRadius));
+        }
+    }
+
+    private void logSteerSysId(SysIdRoutineLog log) {
+        int count =
+                Math.min(
+                        SYSID_MODULE_NAMES.length,
+                        Math.min(
+                                inputs.moduleSteerPositionsRad.length,
+                                Math.min(
+                                        inputs.moduleSteerVelocitiesRadPerSec.length,
+                                        inputs.moduleSteerAppliedVolts.length)));
+        for (int i = 0; i < count; i++) {
+            log.motor("steer" + SYSID_MODULE_NAMES[i])
+                    .voltage(Volts.of(inputs.moduleSteerAppliedVolts[i]))
+                    .angularPosition(Radians.of(inputs.moduleSteerPositionsRad[i]))
+                    .angularVelocity(
+                            RadiansPerSecond.of(inputs.moduleSteerVelocitiesRadPerSec[i]));
+        }
     }
 
     public void addVisionMeasurement(VisionFieldPoseEstimate visionFieldPoseEstimate) {

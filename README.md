@@ -281,7 +281,9 @@ Most mechanism gains are `LoggedTunableNumber`s, meaning they can be edited live
 - **Intake / Indexer** — PID, gravity, and Motion Magic constraints are all tunable (`IntakeConstants`, `IndexerConstants`).
 - **Shooter** — distance→RPM, distance→hood, distance→time-of-flight maps in `ShooterSetpoints`, plus RPM and hood-angle offsets. `USE_TUNING_RPM` forces a manual test RPM.
 - **Shooter characterization** — `ShooterTuningCommands.runAtTunableSetpoint()` and `feedforwardCharacterization()` are published to SmartDashboard and hold exclusive control of the shooter while running.
-- **Drive** — SysId routines are selectable as auto modes; wheel radius / slip are characterized and applied in the tuner constants.
+- **Drive** — translation, steering, and rotation SysId tests are selectable as auto modes; wheel
+  radius / slip characterization is applied in the tuner constants. See the
+  [drive SysId guide](docs/drive-sysid.md) for test order, logs, and setup.
 
 ---
 

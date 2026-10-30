@@ -29,6 +29,14 @@ public class AutoModeSelector {
         SYSID_QUASISTATIC_REVERSE,
         SYSID_DYNAMIC_FORWARD,
         SYSID_DYNAMIC_REVERSE,
+        SYSID_STEER_QUASISTATIC_FORWARD,
+        SYSID_STEER_QUASISTATIC_REVERSE,
+        SYSID_STEER_DYNAMIC_FORWARD,
+        SYSID_STEER_DYNAMIC_REVERSE,
+        SYSID_ROTATION_QUASISTATIC_FORWARD,
+        SYSID_ROTATION_QUASISTATIC_REVERSE,
+        SYSID_ROTATION_DYNAMIC_FORWARD,
+        SYSID_ROTATION_DYNAMIC_REVERSE,
         PATHPLANNER_AUTO,
         CHOREO_PATH,
         MODULAR_AUTO,
@@ -85,6 +93,26 @@ public class AutoModeSelector {
                 "Drive SysId (Quasistatic Reverse)", DesiredMode.SYSID_QUASISTATIC_REVERSE);
         modeChooser.addOption("Drive SysId (Dynamic Forward)", DesiredMode.SYSID_DYNAMIC_FORWARD);
         modeChooser.addOption("Drive SysId (Dynamic Reverse)", DesiredMode.SYSID_DYNAMIC_REVERSE);
+        modeChooser.addOption(
+                "Steer SysId (Quasistatic Forward)",
+                DesiredMode.SYSID_STEER_QUASISTATIC_FORWARD);
+        modeChooser.addOption(
+                "Steer SysId (Quasistatic Reverse)",
+                DesiredMode.SYSID_STEER_QUASISTATIC_REVERSE);
+        modeChooser.addOption(
+                "Steer SysId (Dynamic Forward)", DesiredMode.SYSID_STEER_DYNAMIC_FORWARD);
+        modeChooser.addOption(
+                "Steer SysId (Dynamic Reverse)", DesiredMode.SYSID_STEER_DYNAMIC_REVERSE);
+        modeChooser.addOption(
+                "Rotation SysId (Quasistatic Forward)",
+                DesiredMode.SYSID_ROTATION_QUASISTATIC_FORWARD);
+        modeChooser.addOption(
+                "Rotation SysId (Quasistatic Reverse)",
+                DesiredMode.SYSID_ROTATION_QUASISTATIC_REVERSE);
+        modeChooser.addOption(
+                "Rotation SysId (Dynamic Forward)", DesiredMode.SYSID_ROTATION_DYNAMIC_FORWARD);
+        modeChooser.addOption(
+                "Rotation SysId (Dynamic Reverse)", DesiredMode.SYSID_ROTATION_DYNAMIC_REVERSE);
         modeChooser.addOption("PathPlanner File Auto", DesiredMode.PATHPLANNER_AUTO);
         modeChooser.addOption("Choreo Trajectory", DesiredMode.CHOREO_PATH);
         modeChooser.addOption("Adaptive Route", DesiredMode.ADAPTIVE_ROUTE);
@@ -176,6 +204,30 @@ public class AutoModeSelector {
                     case SYSID_DYNAMIC_REVERSE -> drive.sysIdDynamic(
                                     SysIdRoutine.Direction.kReverse)
                             .withName("Drive SysId Dynamic Reverse");
+                    case SYSID_STEER_QUASISTATIC_FORWARD -> drive.sysIdSteerQuasistatic(
+                                    SysIdRoutine.Direction.kForward)
+                            .withName("Steer SysId Quasistatic Forward");
+                    case SYSID_STEER_QUASISTATIC_REVERSE -> drive.sysIdSteerQuasistatic(
+                                    SysIdRoutine.Direction.kReverse)
+                            .withName("Steer SysId Quasistatic Reverse");
+                    case SYSID_STEER_DYNAMIC_FORWARD -> drive.sysIdSteerDynamic(
+                                    SysIdRoutine.Direction.kForward)
+                            .withName("Steer SysId Dynamic Forward");
+                    case SYSID_STEER_DYNAMIC_REVERSE -> drive.sysIdSteerDynamic(
+                                    SysIdRoutine.Direction.kReverse)
+                            .withName("Steer SysId Dynamic Reverse");
+                    case SYSID_ROTATION_QUASISTATIC_FORWARD -> drive.sysIdRotationQuasistatic(
+                                    SysIdRoutine.Direction.kForward)
+                            .withName("Rotation SysId Quasistatic Forward");
+                    case SYSID_ROTATION_QUASISTATIC_REVERSE -> drive.sysIdRotationQuasistatic(
+                                    SysIdRoutine.Direction.kReverse)
+                            .withName("Rotation SysId Quasistatic Reverse");
+                    case SYSID_ROTATION_DYNAMIC_FORWARD -> drive.sysIdRotationDynamic(
+                                    SysIdRoutine.Direction.kForward)
+                            .withName("Rotation SysId Dynamic Forward");
+                    case SYSID_ROTATION_DYNAMIC_REVERSE -> drive.sysIdRotationDynamic(
+                                    SysIdRoutine.Direction.kReverse)
+                            .withName("Rotation SysId Dynamic Reverse");
                     case PATHPLANNER_AUTO -> loadPathPlannerAuto(pathPlannerChooser.get());
                     case CHOREO_PATH -> AutoUtil.followChoreoPath(
                             drive, state, Optional.ofNullable(choreoChooser.get()).orElse(""), red);

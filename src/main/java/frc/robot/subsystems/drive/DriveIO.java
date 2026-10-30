@@ -35,10 +35,14 @@ public interface DriveIO {
         public SwerveModulePosition[] modulePositions = new SwerveModulePosition[] {};
         public double[] moduleDriveAppliedVolts = new double[] {};
         public double[] moduleSteerAppliedVolts = new double[] {};
+        public double[] moduleSteerPositionsRad = new double[] {};
+        public double[] moduleSteerVelocitiesRadPerSec = new double[] {};
         public ChassisSpeeds speeds = new ChassisSpeeds();
         public double odometryPeriod = 0.0;
 
         public double gyroYawDeg = 0.0;
+        public double gyroYawRad = 0.0;
+        public double gyroYawRadPerSec = 0.0;
         public Rotation2d[] moduleAbsolutePositions = new Rotation2d[] {};
     }
 
@@ -109,8 +113,8 @@ public interface DriveIO {
     }
 
     /**
-     * @return The azimuth (steer) angle of each module, in radians. Used by the steer SysId test to
-     *     record position.
+     * @return The unwrapped cumulative azimuth angle of each module, in radians, for steer
+     *     characterization.
      */
     default double[] getModuleSteerPositionsRad() {
         return new double[] {0.0, 0.0, 0.0, 0.0};

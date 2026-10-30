@@ -59,12 +59,21 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
     private final StatusSignal<AngularVelocity> angularYawVelocity;
     private final StatusSignal<Angle> roll;
     private final StatusSignal<Angle> pitch;
+    private final StatusSignal<Angle> yaw;
     private final StatusSignal<LinearAcceleration> accelerationX;
     private final StatusSignal<LinearAcceleration> accelerationY;
     private final StatusSignal<Voltage>[] driveMotorVoltageSignals;
     private final StatusSignal<Voltage>[] steerMotorVoltageSignals;
     private final StatusSignal<AngularVelocity>[] moduleSteerVelocitySignals;
     private final StatusSignal<Angle>[] moduleAbsolutePositionSignals;
+    private final double[] previousSteerAbsoluteRotations;
+    private final double[] continuousSteerRotations;
+    private final boolean[] haveSteerPosition;
+    private final AtomicReference<double[]> latestSteerPositionsRad =
+            new AtomicReference<>(new double[0]);
+    private double previousYawDegrees;
+    private double continuousYawRadians;
+    private boolean haveYawPosition;
 
     private final RobotState robotState;
     final Consumer<SwerveDriveState> telemetryConsumer_;
@@ -95,6 +104,7 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
         angularYawVelocity = getPigeon2().getAngularVelocityZWorld();
         roll = getPigeon2().getRoll();
         pitch = getPigeon2().getPitch();
+        yaw = getPigeon2().getYaw();
         accelerationX = getPigeon2().getAccelerationX();
         accelerationY = getPigeon2().getAccelerationY();
 
@@ -123,8 +133,11 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
         steerMotorVoltageSignals = steerSignals;
         moduleSteerVelocitySignals = steerVelocitySignals;
         moduleAbsolutePositionSignals = absolutePositionSignals;
+        previousSteerAbsoluteRotations = new double[moduleCount];
+        continuousSteerRotations = new double[moduleCount];
+        haveSteerPosition = new boolean[moduleCount];
 
-        BaseStatusSignal.setUpdateFrequencyForAll(100, angularYawVelocity);
+        BaseStatusSignal.setUpdateFrequencyForAll(100, angularYawVelocity, yaw);
         BaseStatusSignal.setUpdateFrequencyForAll(
                 50,
                 angularPitchVelocity,
@@ -222,17 +235,7 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
 
     @Override
     public double[] getModuleSteerPositionsRad() {
-        SwerveDriveState driveState = telemetryCache.get();
-        if (driveState == null) {
-            return new double[getModules().length];
-        }
-
-        SwerveModuleState[] states = driveState.ModuleStates;
-        double[] positions = new double[states.length];
-        for (int i = 0; i < states.length; i++) {
-            positions[i] = states[i].angle.getRadians();
-        }
-        return positions;
+        return latestSteerPositionsRad.get().clone();
     }
 
     @Override
@@ -288,16 +291,37 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
         if (inputs.moduleSteerAppliedVolts.length != moduleCount) {
             inputs.moduleSteerAppliedVolts = new double[moduleCount];
         }
+        if (inputs.moduleSteerPositionsRad.length != moduleCount) {
+            inputs.moduleSteerPositionsRad = new double[moduleCount];
+        }
+        if (inputs.moduleSteerVelocitiesRadPerSec.length != moduleCount) {
+            inputs.moduleSteerVelocitiesRadPerSec = new double[moduleCount];
+        }
 
         BaseStatusSignal.refreshAll(driveMotorVoltageSignals);
         BaseStatusSignal.refreshAll(steerMotorVoltageSignals);
         BaseStatusSignal.refreshAll(moduleAbsolutePositionSignals);
+        BaseStatusSignal.refreshAll(moduleSteerVelocitySignals);
         for (int i = 0; i < moduleCount; i++) {
-            inputs.moduleAbsolutePositions[i] =
-                    Rotation2d.fromRotations(moduleAbsolutePositionSignals[i].getValueAsDouble());
+            double absoluteRotations = moduleAbsolutePositionSignals[i].getValueAsDouble();
+            if (!haveSteerPosition[i]) {
+                continuousSteerRotations[i] = absoluteRotations;
+                haveSteerPosition[i] = true;
+            } else {
+                continuousSteerRotations[i] +=
+                        Math.IEEEremainder(
+                                absoluteRotations - previousSteerAbsoluteRotations[i], 1.0);
+            }
+            previousSteerAbsoluteRotations[i] = absoluteRotations;
+            inputs.moduleAbsolutePositions[i] = Rotation2d.fromRotations(absoluteRotations);
+            inputs.moduleSteerPositionsRad[i] =
+                    Units.rotationsToRadians(continuousSteerRotations[i]);
+            inputs.moduleSteerVelocitiesRadPerSec[i] =
+                    Units.rotationsToRadians(moduleSteerVelocitySignals[i].getValueAsDouble());
             inputs.moduleDriveAppliedVolts[i] = driveMotorVoltageSignals[i].getValueAsDouble();
             inputs.moduleSteerAppliedVolts[i] = steerMotorVoltageSignals[i].getValueAsDouble();
         }
+        latestSteerPositionsRad.set(inputs.moduleSteerPositionsRad.clone());
 
         ChassisSpeeds measuredRobotRelativeSpeeds =
                 getKinematics().toChassisSpeeds(inputs.moduleStates);
@@ -316,6 +340,7 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
                 angularYawVelocity,
                 pitch,
                 roll,
+                yaw,
                 accelerationX,
                 accelerationY);
 
@@ -325,6 +350,18 @@ public class DriveIOHardware extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder
         double pitchRadiansPerSecond =
                 Units.degreesToRadians(angularPitchVelocity.getValueAsDouble());
         double yawRadiansPerSecond = Units.degreesToRadians(angularYawVelocity.getValueAsDouble());
+        double yawDegrees = yaw.getValueAsDouble();
+        if (!haveYawPosition) {
+            continuousYawRadians = Units.degreesToRadians(yawDegrees);
+            haveYawPosition = true;
+        } else {
+            continuousYawRadians +=
+                    Units.degreesToRadians(
+                            Math.IEEEremainder(yawDegrees - previousYawDegrees, 360.0));
+        }
+        previousYawDegrees = yawDegrees;
+        inputs.gyroYawRad = continuousYawRadians;
+        inputs.gyroYawRadPerSec = yawRadiansPerSecond;
         ChassisSpeeds fusedFieldRelativeSpeeds =
                 new ChassisSpeeds(
                         measuredFieldRelativeSpeeds.vxMetersPerSecond,
