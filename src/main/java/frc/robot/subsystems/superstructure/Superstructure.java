@@ -106,7 +106,40 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput("Tuning/Shooter/HoodSetpointRad", TuningSetpoints.hoodAngleRad());
 
         if (Constants.kTuningMode) {
+            if (currentGoal != desiredGoal
+                    && (currentGoal == Goal.SHOOTING || desiredGoal == Goal.SHOOTING)) {
+                feedingLatched = false;
+                shooterReadyTimestamp = 0.0;
+            }
+            currentGoal = desiredGoal;
             applyTuningSetpoints();
+            if (currentGoal == Goal.SHOOTING) {
+                if (!feedingLatched) {
+                    if (shooter.flywheelsAtSetpoint()) {
+                        if (shooterReadyTimestamp == 0.0) {
+                            shooterReadyTimestamp = Timer.getFPGATimestamp();
+                        }
+                        if (Timer.getFPGATimestamp() - shooterReadyTimestamp
+                                >= SuperstructureConstants.SHOOTER_FEED_DELAY_SECONDS) {
+                            feedingLatched = true;
+                        }
+                    } else {
+                        shooterReadyTimestamp = 0.0;
+                    }
+                }
+
+                if (ownHubActive && (feedingLatched || dumbModeEnabled)) {
+                    commandShootingAgitation();
+                    intake.setRollerVelocity(
+                            SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
+                    indexer.setConveyorVelocity(
+                            SuperstructureConstants.INDEXER_CONVEYOR_VELOCITY_RAD_PER_SEC);
+                    indexer.setFeederVelocity(SuperstructureConstants.FEEDER_VELOCITY_RAD_PER_SEC);
+                } else {
+                    intake.stopRoller();
+                    indexer.stop();
+                }
+            }
             return;
         }
 
@@ -156,7 +189,7 @@ public class Superstructure extends SubsystemBase {
                 // cleanly
                 // if dumb mode is toggled off mid-shot.
                 if (!feedingLatched) {
-                    if (shooter.atSetpoint() && shotReadyToFeed) {
+                    if (shooter.flywheelsAtSetpoint()) {
                         if (shooterReadyTimestamp == 0.0) {
                             shooterReadyTimestamp = Timer.getFPGATimestamp();
                         }
