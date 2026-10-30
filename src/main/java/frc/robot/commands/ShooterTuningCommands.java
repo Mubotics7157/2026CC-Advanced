@@ -25,7 +25,6 @@ public final class ShooterTuningCommands {
                         () -> {
                             superstructure.setShooterTuningOverride(true);
                             superstructure.setGoal(Goal.IDLE);
-                            shooter.setLaunchActive(false);
                             shooter.setVelocity(
                                     Units.rotationsPerMinuteToRadiansPerSecond(
                                             ShooterConstants.getTuningVelocityRPM()));
@@ -50,7 +49,6 @@ public final class ShooterTuningCommands {
                         () -> {
                             superstructure.setShooterTuningOverride(true);
                             superstructure.setGoal(Goal.IDLE);
-                            shooter.setLaunchActive(false);
                             shooter.setHoodAngle(
                                     Units.degreesToRadians(
                                             ShooterConstants.getTuningHoodAngleDegrees()));
@@ -126,7 +124,6 @@ public final class ShooterTuningCommands {
                                     rightAppliedVoltage.clear();
                                     superstructure.setShooterTuningOverride(true);
                                     superstructure.setGoal(Goal.IDLE);
-                                    shooter.setLaunchActive(false);
                                     shooter.stop();
                                 },
                                 shooter,

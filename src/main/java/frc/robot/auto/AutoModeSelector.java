@@ -94,11 +94,9 @@ public class AutoModeSelector {
         modeChooser.addOption("Drive SysId (Dynamic Forward)", DesiredMode.SYSID_DYNAMIC_FORWARD);
         modeChooser.addOption("Drive SysId (Dynamic Reverse)", DesiredMode.SYSID_DYNAMIC_REVERSE);
         modeChooser.addOption(
-                "Steer SysId (Quasistatic Forward)",
-                DesiredMode.SYSID_STEER_QUASISTATIC_FORWARD);
+                "Steer SysId (Quasistatic Forward)", DesiredMode.SYSID_STEER_QUASISTATIC_FORWARD);
         modeChooser.addOption(
-                "Steer SysId (Quasistatic Reverse)",
-                DesiredMode.SYSID_STEER_QUASISTATIC_REVERSE);
+                "Steer SysId (Quasistatic Reverse)", DesiredMode.SYSID_STEER_QUASISTATIC_REVERSE);
         modeChooser.addOption(
                 "Steer SysId (Dynamic Forward)", DesiredMode.SYSID_STEER_DYNAMIC_FORWARD);
         modeChooser.addOption(

@@ -2,12 +2,10 @@ package frc.robot.subsystems.shooter;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
-import com.ctre.phoenix6.configs.Slot1Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.TorqueCurrentFOC;
-import com.ctre.phoenix6.controls.VelocityDutyCycle;
-import com.ctre.phoenix6.controls.VelocityVoltage;
+import com.ctre.phoenix6.controls.MotionMagicVelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -26,9 +24,8 @@ public class ShooterIOReal implements ShooterIO {
     private final TalonFX middleMotor;
     private final TalonFX rightMotor;
 
-    private final VelocityVoltage velocityRequest = new VelocityVoltage(0.0);
-    private final VelocityDutyCycle bangBangRequest = new VelocityDutyCycle(0.0).withSlot(1);
-    private final TorqueCurrentFOC torqueCurrentRequest = new TorqueCurrentFOC(0.0);
+    private final MotionMagicVelocityTorqueCurrentFOC velocityRequest =
+            new MotionMagicVelocityTorqueCurrentFOC(0.0).withSlot(0);
     private final VoltageOut voltageRequest = new VoltageOut(0.0);
 
     private final StatusSignal<AngularVelocity> leftVelocity;
@@ -175,27 +172,10 @@ public class ShooterIOReal implements ShooterIO {
     public void setVelocity(double velocityRadPerSec) {
         velocitySetpoint = velocityRadPerSec;
         double velocityRotationsPerSec = Units.radiansToRotations(velocityRadPerSec);
-        leftMotor.setControl(velocityRequest.withVelocity(velocityRotationsPerSec));
-        middleMotor.setControl(velocityRequest.withVelocity(velocityRotationsPerSec));
-        rightMotor.setControl(velocityRequest.withVelocity(velocityRotationsPerSec));
-    }
-
-    @Override
-    public void runVelocityDutyCycleBangBang(double velocityRadPerSec) {
-        velocitySetpoint = velocityRadPerSec;
-        double velocityRotationsPerSec = Units.radiansToRotations(velocityRadPerSec);
-        leftMotor.setControl(bangBangRequest.withVelocity(velocityRotationsPerSec));
-        middleMotor.setControl(bangBangRequest.withVelocity(velocityRotationsPerSec));
-        rightMotor.setControl(bangBangRequest.withVelocity(velocityRotationsPerSec));
-    }
-
-    @Override
-    public void runTorqueCurrent(double torqueCurrentAmps) {
-        double output =
-                MathUtil.clamp(torqueCurrentAmps, 0.0, ShooterConstants.getPeakTorqueCurrentAmps());
-        leftMotor.setControl(torqueCurrentRequest.withOutput(output));
-        middleMotor.setControl(torqueCurrentRequest.withOutput(output));
-        rightMotor.setControl(torqueCurrentRequest.withOutput(output));
+        velocityRequest.withAcceleration(0.0).withVelocity(velocityRotationsPerSec);
+        leftMotor.setControl(velocityRequest);
+        middleMotor.setControl(velocityRequest);
+        rightMotor.setControl(velocityRequest);
     }
 
     @Override
@@ -240,15 +220,16 @@ public class ShooterIOReal implements ShooterIO {
         var config = new TalonFXConfiguration();
         config.MotorOutput.NeutralMode = NeutralModeValue.Coast;
         config.MotorOutput.Inverted = inverted;
-        config.MotorOutput.PeakForwardDutyCycle = 1.0;
-        config.MotorOutput.PeakReverseDutyCycle = 0.0;
         config.CurrentLimits.StatorCurrentLimit = ShooterConstants.getStatorCurrentLimitAmps();
         config.CurrentLimits.StatorCurrentLimitEnable = true;
         config.Feedback.SensorToMechanismRatio = ShooterConstants.SHOOTER_GEAR_RATIO;
         applyShooterGains(config.Slot0, flywheel);
-        config.Slot1.kP = ShooterConstants.getBangBangKp();
+        config.MotionMagic.MotionMagicAcceleration =
+                ShooterConstants.getMotionMagicAccelerationRotationsPerSecSq();
+        config.MotionMagic.MotionMagicJerk = 0.0;
         config.TorqueCurrent.PeakForwardTorqueCurrent = ShooterConstants.getPeakTorqueCurrentAmps();
-        config.TorqueCurrent.PeakReverseTorqueCurrent = 0.0;
+        config.TorqueCurrent.PeakReverseTorqueCurrent =
+                -ShooterConstants.getPeakTorqueCurrentAmps();
         motor.getConfigurator().apply(config);
     }
 
@@ -257,9 +238,11 @@ public class ShooterIOReal implements ShooterIO {
         applyShooterGains(slot0, flywheel);
         motor.getConfigurator().apply(slot0);
 
-        var slot1 = new Slot1Configs();
-        slot1.kP = ShooterConstants.getBangBangKp();
-        motor.getConfigurator().apply(slot1);
+        var motionMagic = new MotionMagicConfigs();
+        motionMagic.MotionMagicAcceleration =
+                ShooterConstants.getMotionMagicAccelerationRotationsPerSecSq();
+        motionMagic.MotionMagicJerk = 0.0;
+        motor.getConfigurator().apply(motionMagic);
 
         var currentLimits = new com.ctre.phoenix6.configs.CurrentLimitsConfigs();
         currentLimits.StatorCurrentLimit = ShooterConstants.getStatorCurrentLimitAmps();
@@ -268,13 +251,13 @@ public class ShooterIOReal implements ShooterIO {
 
         var torqueCurrent = new com.ctre.phoenix6.configs.TorqueCurrentConfigs();
         torqueCurrent.PeakForwardTorqueCurrent = ShooterConstants.getPeakTorqueCurrentAmps();
-        torqueCurrent.PeakReverseTorqueCurrent = 0.0;
+        torqueCurrent.PeakReverseTorqueCurrent = -ShooterConstants.getPeakTorqueCurrentAmps();
         motor.getConfigurator().apply(torqueCurrent);
     }
 
     private static void applyShooterGains(Slot0Configs slot0, ShooterConstants.Flywheel flywheel) {
-        // VelocityVoltage gains produce volts. SensorToMechanismRatio already makes the
-        // controller's velocity/error mechanism-side, so do not scale gains by gear ratio.
+        // Motion Magic Velocity TorqueCurrentFOC gains produce amps. SensorToMechanismRatio
+        // already makes velocity/error mechanism-side, so do not scale gains by gear ratio.
         slot0.kS = flywheel.kS.getClamped(0.0, 12.0);
         slot0.kV = flywheel.kV.getClamped(0.0, 12.0);
         slot0.kA = flywheel.kA.getClamped(0.0, 12.0);

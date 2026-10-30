@@ -101,6 +101,7 @@ public class DriveSubsystem extends SubsystemBase {
 
     /** SysId represents CTRE's requested rotational rate in the log's voltage field. */
     private volatile double sysIdRotationRateRadPerSec;
+
     private final Timer sysIdLogIdleTimer = new Timer();
     private final Timer sysIdTestTimer = new Timer();
     private final Set<String> completedSysIdTests = new HashSet<>();
@@ -158,10 +159,7 @@ public class DriveSubsystem extends SubsystemBase {
                                 Seconds.of(SYSID_TIMEOUT_SECONDS),
                                 this::recordSysIdState),
                         new SysIdRoutine.Mechanism(
-                                io::setSteerOpenLoopVoltage,
-                                this::logSteerSysId,
-                                this,
-                                "steer"));
+                                io::setSteerOpenLoopVoltage, this::logSteerSysId, this, "steer"));
 
         // CTRE's SysIdSwerveRotation request takes angular rate rather than voltage. Following
         // CTRE's SysId workflow, that rate is stored in SysId's voltage field; yaw and yaw rate
@@ -608,10 +606,8 @@ public class DriveSubsystem extends SubsystemBase {
             Supplier<Boolean> ready,
             Supplier<Command> testFactory,
             String mechanismName) {
-        Command settle =
-                run(prepare).until(ready::get).withTimeout(SYSID_READY_TIMEOUT_SECONDS);
-        return settle
-                .andThen(
+        Command settle = run(prepare).until(ready::get).withTimeout(SYSID_READY_TIMEOUT_SECONDS);
+        return settle.andThen(
                         Commands.defer(
                                 () -> {
                                     if (!ready.get()) {
@@ -654,8 +650,7 @@ public class DriveSubsystem extends SubsystemBase {
             return false;
         }
         for (int i = 0; i < SYSID_MODULE_NAMES.length; i++) {
-            if (Math.abs(inputs.moduleStates[i].speedMetersPerSecond)
-                            > SYSID_MAX_WHEEL_SPEED_MPS
+            if (Math.abs(inputs.moduleStates[i].speedMetersPerSecond) > SYSID_MAX_WHEEL_SPEED_MPS
                     || Math.abs(inputs.moduleSteerVelocitiesRadPerSec[i])
                             > SYSID_MAX_STEER_SPEED_RAD_PER_SEC) {
                 return false;
@@ -785,8 +780,7 @@ public class DriveSubsystem extends SubsystemBase {
             log.motor("steer" + SYSID_MODULE_NAMES[i])
                     .voltage(Volts.of(inputs.moduleSteerAppliedVolts[i]))
                     .angularPosition(Radians.of(inputs.moduleSteerPositionsRad[i]))
-                    .angularVelocity(
-                            RadiansPerSecond.of(inputs.moduleSteerVelocitiesRadPerSec[i]));
+                    .angularVelocity(RadiansPerSecond.of(inputs.moduleSteerVelocitiesRadPerSec[i]));
         }
     }
 

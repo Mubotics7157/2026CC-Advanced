@@ -26,11 +26,11 @@ public final class ShooterConstants {
 
         Flywheel(String name) {
             String key = "Shooter/Flywheels/" + name + "/";
-            kS = new LoggedTunableNumber(key + "kS", 0.90165);
-            kV = new LoggedTunableNumber(key + "kV", 0.13386);
-            kA = new LoggedTunableNumber(key + "kA", 0.0);
-            kP = new LoggedTunableNumber(key + "kP", 12.5);
-            kI = new LoggedTunableNumber(key + "kI", 2.0);
+            kS = new LoggedTunableNumber(key + "kS", 9.0);
+            kV = new LoggedTunableNumber(key + "kV", 0.122);
+            kA = new LoggedTunableNumber(key + "kA", 0.5);
+            kP = new LoggedTunableNumber(key + "kP", 13);
+            kI = new LoggedTunableNumber(key + "kI", 0.0);
             kD = new LoggedTunableNumber(key + "kD", 0.0);
         }
 
@@ -57,8 +57,10 @@ public final class ShooterConstants {
             new LoggedTunableNumber("Shooter/CurrentLimit/StatorAmps", MAX_SHOOTER_CURRENT_AMPS);
     public static final LoggedTunableNumber SHOOTER_PEAK_TORQUE_CURRENT_AMPS =
             new LoggedTunableNumber("Shooter/CurrentLimit/TorqueAmps", MAX_SHOOTER_CURRENT_AMPS);
+    public static final LoggedTunableNumber MOTION_MAGIC_ACCELERATION_ROTATIONS_PER_SEC_SQ =
+            new LoggedTunableNumber("Shooter/MotionMagic/AccelerationRotationsPerSecSq", 100.0);
     public static final LoggedTunableNumber VELOCITY_TOLERANCE_RPM =
-            new LoggedTunableNumber("Shooter/Tuning/VelocityToleranceRPM", 100.0);
+            new LoggedTunableNumber("Shooter/Tuning/VelocityToleranceRPM", 500.0);
     public static final LoggedTunableNumber MAX_VELOCITY_RPM =
             new LoggedTunableNumber("Shooter/Tuning/MaxVelocityRPM", 6000.0);
     public static final LoggedTunableNumber TUNING_VELOCITY_RPM =
@@ -110,33 +112,12 @@ public final class ShooterConstants {
                 MathUtil.clamp(normalizedPosition, 0.0, 1.0));
     }
 
-    /** Large slot-1 gain with forward-only duty-cycle limits emulates BangBang control. */
-    public static final LoggedTunableNumber BANG_BANG_KP =
-            new LoggedTunableNumber("Shooter/BangBang/kP", 999999.0);
-
-    public static final LoggedTunableNumber STARTUP_READY_TOLERANCE_RPM =
-            new LoggedTunableNumber("Shooter/Phase/StartupReadyToleranceRPM", 80.0);
-    public static final LoggedTunableNumber RECOVERY_READY_TOLERANCE_RPM =
-            new LoggedTunableNumber("Shooter/Phase/RecoveryReadyToleranceRPM", 60.0);
-    public static final LoggedTunableNumber BALL_ENTRY_DROP_RPM =
-            new LoggedTunableNumber("Shooter/Phase/BallEntryDropRPM", 120.0);
-    public static final LoggedTunableNumber LAUNCH_TO_BALL_DELAY_SEC =
-            new LoggedTunableNumber("Shooter/Phase/LaunchToBallDelaySec", 0.0);
-    public static final LoggedTunableNumber BALL_PHASE_DURATION_SEC =
-            new LoggedTunableNumber("Shooter/Phase/BallDurationSec", 0.06);
-    public static final LoggedTunableNumber BALL_TORQUE_CURRENT_AMPS =
-            new LoggedTunableNumber("Shooter/Phase/BallTorqueCurrentAmps", 29.0);
-
     public static double getStatorCurrentLimitAmps() {
         return SHOOTER_STATOR_CURRENT_LIMIT_AMPS.getClamped(1.0, MAX_SHOOTER_CURRENT_AMPS);
     }
 
     public static double getPeakTorqueCurrentAmps() {
         return SHOOTER_PEAK_TORQUE_CURRENT_AMPS.getClamped(0.0, MAX_SHOOTER_CURRENT_AMPS);
-    }
-
-    public static double getBangBangKp() {
-        return BANG_BANG_KP.getClamped(1.0, 1e6);
     }
 
     public static double getMaxVelocityRPM() {
@@ -147,32 +128,8 @@ public final class ShooterConstants {
         return VELOCITY_TOLERANCE_RPM.getClamped(1.0, 500.0);
     }
 
-    public static double getStartupReadyToleranceRPM(double targetRPM) {
-        double requestedTolerance = STARTUP_READY_TOLERANCE_RPM.getClamped(1.0, 1000.0);
-        return Math.min(requestedTolerance, Math.max(1.0, targetRPM * 0.25));
-    }
-
-    public static double getRecoveryReadyToleranceRPM(double targetRPM) {
-        double requestedTolerance = RECOVERY_READY_TOLERANCE_RPM.getClamped(1.0, 1000.0);
-        return Math.min(requestedTolerance, Math.max(1.0, targetRPM * 0.25));
-    }
-
-    public static double getBallEntryDropRPM() {
-        return BALL_ENTRY_DROP_RPM.getClamped(1.0, 2000.0);
-    }
-
-    public static double getLaunchToBallDelaySeconds() {
-        return LAUNCH_TO_BALL_DELAY_SEC.getClamped(0.0, 0.5);
-    }
-
-    public static double getBallPhaseDurationSeconds() {
-        return BALL_PHASE_DURATION_SEC.getClamped(0.02, 0.5);
-    }
-
-    public static double getBallTorqueCurrentAmps() {
-        return Math.min(
-                BALL_TORQUE_CURRENT_AMPS.getClamped(0.0, MAX_SHOOTER_CURRENT_AMPS),
-                getPeakTorqueCurrentAmps());
+    public static double getMotionMagicAccelerationRotationsPerSecSq() {
+        return MOTION_MAGIC_ACCELERATION_ROTATIONS_PER_SEC_SQ.getClamped(1.0, 1000.0);
     }
 
     public static double getTuningVelocityRPM() {
@@ -196,14 +153,14 @@ public final class ShooterConstants {
     public static final double STATUS_SIGNAL_UPDATE_FREQUENCY = 50.0;
     public static final double SHOOTER_MOI = 0.003;
 
-    public static boolean hasAnyShooterPIDChanged() {
+    public static boolean hasAnyShooterConfigChanged() {
         boolean changed = false;
         for (Flywheel flywheel : Flywheel.values()) {
             changed |= flywheel.hasChanged();
         }
         changed |= SHOOTER_STATOR_CURRENT_LIMIT_AMPS.hasChanged(SHOOTER_TUNABLE_ID);
         changed |= SHOOTER_PEAK_TORQUE_CURRENT_AMPS.hasChanged(SHOOTER_TUNABLE_ID);
-        changed |= BANG_BANG_KP.hasChanged(SHOOTER_TUNABLE_ID);
+        changed |= MOTION_MAGIC_ACCELERATION_ROTATIONS_PER_SEC_SQ.hasChanged(SHOOTER_TUNABLE_ID);
         return changed;
     }
 }

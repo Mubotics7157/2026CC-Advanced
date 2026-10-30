@@ -144,14 +144,10 @@ All subsystems live under `src/main/java/frc/robot/subsystems/`.
 - Swerve speeds/accel limits: max speed ~6.14 m/s, angular ~16.5 rad/s.
 
 ### Shooter — `subsystems/shooter/`
-- `Shooter` runs a **three-wheel fixed drum** with a servo hood. It is a small state machine over `ControlPhase`: `DISABLED → STARTUP → IDLE → BALL → RECOVERY`, plus `MANUAL_VOLTAGE` for characterization.
-  - **STARTUP** spools up with a bang-bang duty-cycle controller.
-  - **IDLE** holds velocity with closed-loop control and watches for a **ball event** (launch rising edge or a flywheel velocity-drop signature).
-  - **BALL** applies a fixed torque current for a short window to punch through the ball.
-  - **RECOVERY** re-spools to the target via bang-bang before returning to IDLE.
+- `Shooter` runs a **three-wheel fixed drum** with a servo hood. The TalonFXs use `MotionMagicVelocityTorqueCurrentFOC` with per-wheel slot 0 feedforward and PID gains. One acceleration-limited velocity profile handles spool-up, speed changes, and recovery throughout a shot.
 - `ShooterAiming` computes the shot: predicted shooter-exit position (accounting for robot velocity and rotation), a 3D distance to the target including height delta, and iterated **time-of-flight lookahead** to produce a heading, wheel velocity, and hood angle.
 - `ShooterSetpoints` holds the distance→RPM, distance→hood-angle, and distance→time-of-flight interpolation maps (placeholder values — replace with characterized data), plus tunable RPM/hood offsets and the target geometry (official blue Hub center, target height, shooter exit offset).
-- `ShooterIO` / `ShooterIOReal` / `ShooterIOSim` and `ShooterConstants` for CAN IDs, gains, hood servo angle↔position conversion, and phase timing.
+- `ShooterIO` / `ShooterIOReal` / `ShooterIOSim` and `ShooterConstants` provide CAN IDs, gains, Motion Magic acceleration, and hood servo angle↔position conversion.
 
 ### Intake — `subsystems/intake/`
 - Rotating **forebar arm** + rollers, position units in radians at the arm pivot.
@@ -287,7 +283,7 @@ Most mechanism gains are `LoggedTunableNumber`s, meaning they can be edited live
 
 ---
 
-Shooter phase behavior, telemetry, and the recommended hooded-shooter tuning order are documented in [the shooter phase tuning guide](docs/shooter-phase-tuning.md).
+Shooter Motion Magic velocity control, telemetry, and the recommended hooded-shooter tuning order are documented in [the shooter tuning guide](docs/shooter-motion-magic-tuning.md).
 
 ## Package Structure
 

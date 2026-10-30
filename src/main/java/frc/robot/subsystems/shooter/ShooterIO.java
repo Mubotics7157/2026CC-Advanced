@@ -28,7 +28,6 @@ public interface ShooterIO {
 
         public double velocitySetpoint = 0.0;
         public double requestedVelocity = 0.0;
-        public String controlPhase = "DISABLED";
 
         /** Commanded servo positions; PWM servos do not provide mechanism-position feedback. */
         public double leftHoodServoPosition = ShooterConstants.HOOD_SERVO_MIN_POSITION;
@@ -42,10 +41,6 @@ public interface ShooterIO {
     default void updateInputs(ShooterIOInputs inputs) {}
 
     default void setVelocity(double velocityRadPerSec) {}
-
-    default void runVelocityDutyCycleBangBang(double velocityRadPerSec) {}
-
-    default void runTorqueCurrent(double torqueCurrentAmps) {}
 
     default void runVoltage(double volts) {}
 

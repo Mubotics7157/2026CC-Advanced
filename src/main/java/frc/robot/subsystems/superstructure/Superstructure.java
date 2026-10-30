@@ -174,7 +174,6 @@ public class Superstructure extends SubsystemBase {
                 // updating in the background so behavior reverts cleanly if dumb mode is
                 // toggled off mid-shot.
                 boolean shouldFeed = ownHubActive && (feedingLatched || dumbModeEnabled);
-                shooter.setLaunchActive(shouldFeed);
                 if (shouldFeed) {
                     // Only use the intake to agitate balls once feeding has actually started.
                     // In normal mode this follows the shooter/aim readiness gate; dumb mode
@@ -211,7 +210,6 @@ public class Superstructure extends SubsystemBase {
         intake.setRollerVelocity(TuningSetpoints.INTAKE_ROLLER_RAD_PER_SEC.get());
         indexer.setConveyorVelocity(TuningSetpoints.INDEXER_CONVEYOR_RAD_PER_SEC.get());
         indexer.setFeederVelocity(TuningSetpoints.INDEXER_FEEDER_RAD_PER_SEC.get());
-        shooter.setLaunchActive(false);
         shooter.setVelocity(TuningSetpoints.shooterVelocityRadPerSec());
         shooter.setHoodAngle(TuningSetpoints.hoodAngleRad());
     }
@@ -254,7 +252,6 @@ public class Superstructure extends SubsystemBase {
         if (enabled) {
             feedingLatched = false;
             shooterReadyTimestamp = 0.0;
-            shooter.setLaunchActive(false);
             indexer.stop();
             if (!wasEnabled) {
                 shooter.stop();
