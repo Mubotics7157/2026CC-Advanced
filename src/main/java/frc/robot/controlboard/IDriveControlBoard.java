@@ -19,6 +19,8 @@ public interface IDriveControlBoard {
 
     Trigger getWantShoot();
 
+    Trigger getWantHoodExtend();
+
     Trigger getWantToggleDumbMode();
 
     Trigger getWantHubPathFind();

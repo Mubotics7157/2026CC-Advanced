@@ -29,7 +29,7 @@ public final class ShooterConstants {
             kS = new LoggedTunableNumber(key + "kS", 9.0);
             kV = new LoggedTunableNumber(key + "kV", 0.122);
             kA = new LoggedTunableNumber(key + "kA", 0.5);
-            kP = new LoggedTunableNumber(key + "kP", 13);
+            kP = new LoggedTunableNumber(key + "kP", 11.5);
             kI = new LoggedTunableNumber(key + "kI", 0.0);
             kD = new LoggedTunableNumber(key + "kD", 0.0);
         }

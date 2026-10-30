@@ -61,6 +61,11 @@ public class ControlBoard implements IDriveControlBoard, IButtonControlBoard {
     }
 
     @Override
+    public Trigger getWantHoodExtend() {
+        return driveControlBoard.getWantHoodExtend();
+    }
+
+    @Override
     public Trigger getWantToggleDumbMode() {
         return driveControlBoard.getWantToggleDumbMode();
     }

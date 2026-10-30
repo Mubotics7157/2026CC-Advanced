@@ -13,6 +13,7 @@ public class Shooter extends SubsystemBase {
     private double requestedVelocityRadPerSec = 0.0;
     private boolean enabled = false;
     private boolean manualVoltageOverride = false;
+    private boolean hoodExtendOverride = false;
     private double commandedVoltage = 0.0;
 
     public Shooter(ShooterIO io) {
@@ -186,7 +187,19 @@ public class Shooter extends SubsystemBase {
     }
 
     public void setHoodAngle(double angleRad) {
+        if (hoodExtendOverride) {
+            return;
+        }
         io.setHoodServoPosition(ShooterConstants.hoodAngleToServoPosition(angleRad));
+    }
+
+    /** Holds the hood at its maximum extension until the operator releases the override. */
+    public void setHoodExtendOverride(boolean enabled) {
+        hoodExtendOverride = enabled;
+        setHoodAngle(
+                enabled
+                        ? ShooterConstants.HOOD_MAX_ANGLE_RAD
+                        : ShooterConstants.HOOD_MIN_ANGLE_RAD);
     }
 
     /** Applies open-loop voltage to all three flywheels for feedforward characterization. */

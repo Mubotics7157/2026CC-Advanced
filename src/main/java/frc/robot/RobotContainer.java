@@ -194,6 +194,10 @@ public class RobotContainer {
         controlBoard.getWantIntake().whileTrue(IntakeFactory.setIntakingCommand(superstructure));
         controlBoard.getWantOuttake().whileTrue(IntakeFactory.setOuttakingCommand(superstructure));
         controlBoard
+                .getWantHoodExtend()
+                .onTrue(Commands.runOnce(() -> shooter.setHoodExtendOverride(true)))
+                .onFalse(Commands.runOnce(() -> shooter.setHoodExtendOverride(false)));
+        controlBoard
                 .getWantShoot()
                 .whileTrue(
                         new ShootOnTheMoveCommand(

@@ -72,6 +72,11 @@ public class GamepadDriveControlBoard implements IDriveControlBoard {
     }
 
     @Override
+    public Trigger getWantHoodExtend() {
+        return controller.a();
+    }
+
+    @Override
     public Trigger getWantToggleDumbMode() {
         return controller.povRight();
     }
