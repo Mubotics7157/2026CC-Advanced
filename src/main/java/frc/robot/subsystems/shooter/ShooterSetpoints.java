@@ -41,12 +41,12 @@ public final class ShooterSetpoints {
     /** Distance (meters) to drum wheel velocity (RPM). Replace these with characterized data. */
     public static final InterpolatingTreeMap SHOOTER_VELOCITY_RPM_MAP =
             new InterpolatingTreeMap()
-                    .put(1.5, 2200.0)
-                    .put(2.0, 2400.0)
-                    .put(3.0, 2700.0)
-                    .put(4.0, 3100.0)
-                    .put(5.0, 3500.0)
-                    .put(6.0, 3900.0);
+                    .put(1.5, 2500.0)
+                    .put(2.0, 3000.0)
+                    .put(3.0, 3500.0)
+                    .put(4.0, 4000.0)
+                    .put(5.0, 4500.0)
+                    .put(6.0, 5000.0);
 
     /** Distance (meters) to requested hood angle (radians). */
     public static final InterpolatingTreeMap HOOD_ANGLE_MAP =
