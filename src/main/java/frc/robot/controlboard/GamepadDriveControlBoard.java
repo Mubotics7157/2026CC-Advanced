@@ -72,6 +72,11 @@ public class GamepadDriveControlBoard implements IDriveControlBoard {
     }
 
     @Override
+    public Trigger getWantAllianceCornerFerry() {
+        return controller.leftTrigger();
+    }
+
+    @Override
     public Trigger getWantHoodExtend() {
         return controller.a();
     }

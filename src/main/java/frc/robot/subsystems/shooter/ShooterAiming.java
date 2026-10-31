@@ -33,10 +33,27 @@ public final class ShooterAiming {
     }
 
     public static ShotSolution calculate(RobotState robotState) {
+        return calculate(
+                robotState,
+                ShooterSetpoints.getTargetTranslation(robotState.isRedAlliance()),
+                false);
+    }
+
+    /** Calculates a full-field ferry solution aimed at the nearest corner on our alliance wall. */
+    public static ShotSolution calculateAllianceCorner(RobotState robotState) {
+        Translation2d robotPosition =
+                robotState.getLatestFieldToRobot().getValue().getTranslation();
+        Translation2d target =
+                ShooterSetpoints.getAllianceCornerTranslation(
+                        robotState.isRedAlliance(), robotPosition);
+        return calculate(robotState, target, true);
+    }
+
+    private static ShotSolution calculate(
+            RobotState robotState, Translation2d target, boolean allianceCornerFerry) {
         Pose2d robotPose =
                 robotState.getPredictedFieldToRobot(ShooterSetpoints.PRELAUNCH_LOOKAHEAD_SECONDS);
         ChassisSpeeds robotRelativeSpeeds = robotState.getLatestRobotRelativeChassisSpeed();
-        Translation2d target = ShooterSetpoints.getTargetTranslation(robotState.isRedAlliance());
 
         Translation2d shooterStart =
                 robotPose
@@ -50,12 +67,12 @@ public final class ShooterAiming {
 
         Translation2d compensatedShooter = shooterStart;
         double distance = get3dShotDistance(compensatedShooter, target);
-        double timeOfFlight = ShooterSetpoints.getTimeOfFlightSeconds(distance);
+        double timeOfFlight = getTimeOfFlightSeconds(distance, allianceCornerFerry);
 
         for (int i = 0; i < ShooterSetpoints.LAUNCH_LOOKAHEAD_ITERATIONS; i++) {
             compensatedShooter = shooterStart.plus(shooterVelocity.times(timeOfFlight));
             distance = get3dShotDistance(compensatedShooter, target);
-            timeOfFlight = ShooterSetpoints.getTimeOfFlightSeconds(distance);
+            timeOfFlight = getTimeOfFlightSeconds(distance, allianceCornerFerry);
         }
 
         Translation2d shooterToTarget = target.minus(compensatedShooter);
@@ -71,9 +88,15 @@ public final class ShooterAiming {
                 Math.abs(headingError) < ShooterSetpoints.HEADING_TOLERANCE_RAD
                         && Math.abs(robotRelativeSpeeds.omegaRadiansPerSecond)
                                 < ShooterSetpoints.OMEGA_TOLERANCE_RAD_PER_SEC;
-        boolean inRange = ShooterSetpoints.isInRange(distance);
-        double shooterVelocityRadPerSec = ShooterSetpoints.getVelocityRadPerSec(distance);
-        double hoodAngleRad = ShooterSetpoints.getHoodAngleRad(distance);
+        boolean inRange = allianceCornerFerry || ShooterSetpoints.isInRange(distance);
+        double shooterVelocityRadPerSec =
+                allianceCornerFerry
+                        ? ShooterSetpoints.getAllianceCornerFerryVelocityRadPerSec()
+                        : ShooterSetpoints.getVelocityRadPerSec(distance);
+        double hoodAngleRad =
+                allianceCornerFerry
+                        ? ShooterConstants.HOOD_MAX_ANGLE_RAD
+                        : ShooterSetpoints.getHoodAngleRad(distance);
 
         ShotSolution solution =
                 new ShotSolution(
@@ -91,6 +114,12 @@ public final class ShooterAiming {
                         headingReady);
         log(solution);
         return solution;
+    }
+
+    private static double getTimeOfFlightSeconds(double distanceMeters, boolean ferry) {
+        return ferry
+                ? ShooterSetpoints.ALLIANCE_CORNER_FERRY_FLIGHT_TIME_SECONDS.get()
+                : ShooterSetpoints.getTimeOfFlightSeconds(distanceMeters);
     }
 
     private static Translation2d calculateShooterFieldVelocity(

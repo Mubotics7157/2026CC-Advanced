@@ -206,6 +206,16 @@ public class RobotContainer {
                                 superstructure,
                                 controlBoard::getThrottle,
                                 controlBoard::getStrafe));
+        controlBoard
+                .getWantAllianceCornerFerry()
+                .whileTrue(
+                        new ShootOnTheMoveCommand(
+                                driveSubsystem,
+                                robotState,
+                                superstructure,
+                                controlBoard::getThrottle,
+                                controlBoard::getStrafe,
+                                true));
 
         // POV Right: toggle "dumb mode" — while active, SHOOTING bypasses hood and flywheel
         // setpoint checks and feeds immediately once the robot has moved into position.

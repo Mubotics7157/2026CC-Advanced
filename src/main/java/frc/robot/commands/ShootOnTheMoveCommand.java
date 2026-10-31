@@ -18,6 +18,7 @@ public class ShootOnTheMoveCommand extends Command {
     private final Superstructure superstructure;
     private final DoubleSupplier throttleSupplier;
     private final DoubleSupplier strafeSupplier;
+    private final boolean allianceCornerFerry;
 
     private final SwerveRequest.FieldCentricFacingAngle driveWithHeading =
             new SwerveRequest.FieldCentricFacingAngle()
@@ -30,11 +31,22 @@ public class ShootOnTheMoveCommand extends Command {
             Superstructure superstructure,
             DoubleSupplier throttleSupplier,
             DoubleSupplier strafeSupplier) {
+        this(driveSubsystem, robotState, superstructure, throttleSupplier, strafeSupplier, false);
+    }
+
+    public ShootOnTheMoveCommand(
+            DriveSubsystem driveSubsystem,
+            RobotState robotState,
+            Superstructure superstructure,
+            DoubleSupplier throttleSupplier,
+            DoubleSupplier strafeSupplier,
+            boolean allianceCornerFerry) {
         this.driveSubsystem = driveSubsystem;
         this.robotState = robotState;
         this.superstructure = superstructure;
         this.throttleSupplier = throttleSupplier;
         this.strafeSupplier = strafeSupplier;
+        this.allianceCornerFerry = allianceCornerFerry;
 
         driveWithHeading.HeadingController.setPID(
                 DriveConstants.kHeadingControllerP,
@@ -42,7 +54,7 @@ public class ShootOnTheMoveCommand extends Command {
                 DriveConstants.kHeadingControllerD);
 
         addRequirements(driveSubsystem, superstructure);
-        setName("Shoot On The Move");
+        setName(allianceCornerFerry ? "Alliance Corner Ferry" : "Shoot On The Move");
     }
 
     @Override
@@ -52,11 +64,15 @@ public class ShootOnTheMoveCommand extends Command {
 
     @Override
     public void execute() {
-        ShooterAiming.ShotSolution solution = ShooterAiming.calculate(robotState);
+        ShooterAiming.ShotSolution solution =
+                allianceCornerFerry
+                        ? ShooterAiming.calculateAllianceCorner(robotState)
+                        : ShooterAiming.calculate(robotState);
         superstructure.setShootingRequest(
                 solution.shooterVelocityRadPerSec(),
                 solution.hoodAngleRad(),
-                solution.readyToFeed());
+                solution.readyToFeed(),
+                !allianceCornerFerry);
 
         double throttle = throttleSupplier.getAsDouble() * DriveConstants.kDriveMaxSpeed;
         double strafe = strafeSupplier.getAsDouble() * DriveConstants.kDriveMaxSpeed;
@@ -73,8 +89,7 @@ public class ShootOnTheMoveCommand extends Command {
     @Override
     public void end(boolean interrupted) {
         superstructure.clearShootingRequest();
-        // Preserve the intake's deployed post-shot state; the superstructure still parks the
-        // hood and stops every roller as soon as SHOOTING exits.
+        // Preserve the intake's deployed post-shot state while stopping the shooter and rollers.
         superstructure.setGoal(Goal.DEPLOYED_IDLE);
     }
 }

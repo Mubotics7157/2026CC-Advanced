@@ -23,6 +23,24 @@ public final class ShooterSetpoints {
     public static final Translation2d RED_TARGET_TRANSLATION =
             Util.flipRedBlue(BLUE_TARGET_TRANSLATION);
 
+    /** Ferry target is whichever corner on the robot's own alliance wall is closest. */
+    public static Translation2d getAllianceCornerTranslation(
+            boolean isRedAlliance, Translation2d robotPosition) {
+        double allianceWallX = isRedAlliance ? FieldConstants.fieldLength : 0.0;
+        Translation2d cornerA = new Translation2d(allianceWallX, 0.0);
+        Translation2d cornerB = new Translation2d(allianceWallX, FieldConstants.fieldWidth);
+        return robotPosition.getDistance(cornerA) <= robotPosition.getDistance(cornerB)
+                ? cornerA
+                : cornerB;
+    }
+
+    /** Full-field ferry setpoints, based on the reference robot's ferry configuration. */
+    public static final LoggedTunableNumber ALLIANCE_CORNER_FERRY_RPM =
+            new LoggedTunableNumber("Shooter/AllianceCornerFerry/FlywheelRPM", 3800.0);
+
+    public static final LoggedTunableNumber ALLIANCE_CORNER_FERRY_FLIGHT_TIME_SECONDS =
+            new LoggedTunableNumber("Shooter/AllianceCornerFerry/FlightTimeSeconds", 1.15);
+
     public static final double TARGET_HEIGHT_METERS = Units.inchesToMeters(72.0);
     public static final double SHOOTER_EXIT_HEIGHT_METERS = Units.inchesToMeters(24.0);
 
@@ -104,5 +122,9 @@ public final class ShooterSetpoints {
 
     public static double getTimeOfFlightSeconds(double distanceMeters) {
         return TIME_OF_FLIGHT_SECONDS_MAP.get(distanceMeters);
+    }
+
+    public static double getAllianceCornerFerryVelocityRadPerSec() {
+        return Units.rotationsPerMinuteToRadiansPerSecond(ALLIANCE_CORNER_FERRY_RPM.get());
     }
 }

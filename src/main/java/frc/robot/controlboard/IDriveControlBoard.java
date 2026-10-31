@@ -19,6 +19,8 @@ public interface IDriveControlBoard {
 
     Trigger getWantShoot();
 
+    Trigger getWantAllianceCornerFerry();
+
     Trigger getWantHoodExtend();
 
     Trigger getWantToggleDumbMode();

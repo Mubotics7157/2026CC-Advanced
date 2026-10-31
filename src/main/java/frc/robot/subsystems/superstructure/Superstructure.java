@@ -34,6 +34,7 @@ public class Superstructure extends SubsystemBase {
     private double shootingVelocityRadPerSec = SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC;
     private double shootingHoodAngleRad = SuperstructureConstants.SHOOTER_HOOD_ANGLE_RAD;
     private boolean shotReadyToFeed = true;
+    private boolean shotRequiresOwnHubActive = true;
 
     // "Dumb mode": when active and SHOOTING, bypass tolerance/setpoint gating and feed
     // immediately regardless of whether the hood, flywheels, and targeting solution have
@@ -87,6 +88,7 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput(
                 "Superstructure/ShootingHoodAngleDeg", Math.toDegrees(shootingHoodAngleRad));
         Logger.recordOutput("Superstructure/ShotReadyToFeed", shotReadyToFeed);
+        Logger.recordOutput("Superstructure/ShotRequiresOwnHubActive", shotRequiresOwnHubActive);
         Logger.recordOutput("Superstructure/ShooterTuningOverride", shooterTuningOverride);
 
         Logger.recordOutput("Superstructure/TuningMode", Constants.kTuningMode);
@@ -115,7 +117,7 @@ public class Superstructure extends SubsystemBase {
             applyTuningSetpoints();
             if (currentGoal == Goal.SHOOTING) {
                 if (!feedingLatched) {
-                    if (shooter.flywheelsAtSetpoint()) {
+                    if (shooter.atSetpoint() && shotReadyToFeed) {
                         if (shooterReadyTimestamp == 0.0) {
                             shooterReadyTimestamp = Timer.getFPGATimestamp();
                         }
@@ -128,7 +130,7 @@ public class Superstructure extends SubsystemBase {
                     }
                 }
 
-                if (ownHubActive && (feedingLatched || dumbModeEnabled)) {
+                if (canFeedShot()) {
                     commandShootingAgitation();
                     intake.setRollerVelocity(
                             SuperstructureConstants.INTAKE_ROLLER_VELOCITY_RAD_PER_SEC);
@@ -189,7 +191,7 @@ public class Superstructure extends SubsystemBase {
                 // cleanly
                 // if dumb mode is toggled off mid-shot.
                 if (!feedingLatched) {
-                    if (shooter.flywheelsAtSetpoint()) {
+                    if (shooter.atSetpoint() && shotReadyToFeed) {
                         if (shooterReadyTimestamp == 0.0) {
                             shooterReadyTimestamp = Timer.getFPGATimestamp();
                         }
@@ -206,7 +208,7 @@ public class Superstructure extends SubsystemBase {
                 // entry to SHOOTING regardless of tolerances or setpoints. The latch keeps
                 // updating in the background so behavior reverts cleanly if dumb mode is
                 // toggled off mid-shot.
-                boolean shouldFeed = ownHubActive && (feedingLatched || dumbModeEnabled);
+                boolean shouldFeed = canFeedShot();
                 if (shouldFeed) {
                     // Only use the intake to agitate balls once feeding has actually started.
                     // In normal mode this follows the shooter/aim readiness gate; dumb mode
@@ -265,15 +267,34 @@ public class Superstructure extends SubsystemBase {
 
     public void setShootingRequest(
             double velocityRadPerSec, double hoodAngleRad, boolean readyToFeed) {
+        setShootingRequest(velocityRadPerSec, hoodAngleRad, readyToFeed, true);
+    }
+
+    /**
+     * Supplies the active shot solution and selects whether feeding requires our Hub to be active.
+     * Ferry shots do not score in the Hub, so they pass {@code false} for that requirement.
+     */
+    public void setShootingRequest(
+            double velocityRadPerSec,
+            double hoodAngleRad,
+            boolean readyToFeed,
+            boolean requiresOwnHubActive) {
         shootingVelocityRadPerSec = velocityRadPerSec;
         shootingHoodAngleRad = hoodAngleRad;
         shotReadyToFeed = readyToFeed;
+        shotRequiresOwnHubActive = requiresOwnHubActive;
     }
 
     public void clearShootingRequest() {
         shootingVelocityRadPerSec = SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC;
         shootingHoodAngleRad = SuperstructureConstants.SHOOTER_HOOD_ANGLE_RAD;
         shotReadyToFeed = true;
+        shotRequiresOwnHubActive = true;
+    }
+
+    private boolean canFeedShot() {
+        return (!shotRequiresOwnHubActive || ownHubActive)
+                && (dumbModeEnabled || (shotReadyToFeed && feedingLatched));
     }
 
     /**
@@ -326,7 +347,7 @@ public class Superstructure extends SubsystemBase {
             case OUTTAKING -> intake.isDeployed()
                     && indexer.isConveyorRunning()
                     && indexer.isFeederRunning();
-            case SHOOTING -> ownHubActive && (feedingLatched || dumbModeEnabled);
+            case SHOOTING -> canFeedShot();
             case IDLE -> intake.isStowed();
             case DEPLOYED_IDLE -> intake.isDeployed();
         };

@@ -20,12 +20,12 @@ public final class IntakeConstants {
 
     // Replace these preliminary positions, gains, and motion constraints after mechanism tuning.
     public static final double ARM_STOWED_POSITION_RAD = 0.0;
-    public static final double ARM_DEPLOYED_POSITION_RAD = Units.rotationsToRadians(0.28);
+    public static final double ARM_DEPLOYED_POSITION_RAD = Units.rotationsToRadians(0.31);
     public static final double ARM_MIN_POSITION_RAD =
             Math.min(ARM_STOWED_POSITION_RAD, ARM_DEPLOYED_POSITION_RAD);
     public static final double ARM_MAX_POSITION_RAD =
             Math.max(ARM_STOWED_POSITION_RAD, ARM_DEPLOYED_POSITION_RAD);
-    public static final double ARM_AGITATE_POSITION_RAD = Units.rotationsToRadians(0.1259);
+    public static final double ARM_AGITATE_POSITION_RAD = Units.rotationsToRadians(0.2);
     public static final double ARM_POSITION_TOLERANCE_RAD = 0.15;
     public static final double ARM_DEADZONE_TOLERANCE_RAD = 0.15;
 
@@ -49,7 +49,7 @@ public final class IntakeConstants {
     public static final LoggedTunableNumber ARM_KV = new LoggedTunableNumber("Intake/Arm/kV", 0.0);
     public static final LoggedTunableNumber ARM_KA = new LoggedTunableNumber("Intake/Arm/kA", 0.0);
     public static final LoggedTunableNumber ARM_KG = new LoggedTunableNumber("Intake/Arm/kG", 0.26);
-    public static final LoggedTunableNumber ARM_KP = new LoggedTunableNumber("Intake/Arm/kP", 53.0);
+    public static final LoggedTunableNumber ARM_KP = new LoggedTunableNumber("Intake/Arm/kP", 50.0);
     public static final LoggedTunableNumber ARM_KI = new LoggedTunableNumber("Intake/Arm/kI", 0.0);
     public static final LoggedTunableNumber ARM_KD = new LoggedTunableNumber("Intake/Arm/kD", 4.25);
     public static final LoggedTunableNumber ARM_GRAVITY_OFFSET_ROT =
@@ -60,7 +60,7 @@ public final class IntakeConstants {
     public static final LoggedTunableNumber ARM_MOTION_MAGIC_EXPO_KA =
             new LoggedTunableNumber("Intake/Arm/MMExpo_kA", 0.1);
     public static final LoggedTunableNumber ARM_MOTION_MAGIC_CRUISE_VELOCITY_RAD_PER_SEC =
-            new LoggedTunableNumber("Intake/Arm/MMCruiseVelRadPerSec", 25.0);
+            new LoggedTunableNumber("Intake/Arm/MMCruiseVelRadPerSec", 5.0);
     public static final LoggedTunableNumber ARM_MOTION_MAGIC_ACCELERATION_RAD_PER_SEC_SQ =
             new LoggedTunableNumber("Intake/Arm/MMAccelRadPerSecSq", 0.0);
     public static final LoggedTunableNumber ARM_MOTION_MAGIC_JERK_RAD_PER_SEC_CU =

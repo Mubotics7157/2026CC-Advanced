@@ -61,6 +61,11 @@ public class ControlBoard implements IDriveControlBoard, IButtonControlBoard {
     }
 
     @Override
+    public Trigger getWantAllianceCornerFerry() {
+        return driveControlBoard.getWantAllianceCornerFerry();
+    }
+
+    @Override
     public Trigger getWantHoodExtend() {
         return driveControlBoard.getWantHoodExtend();
     }
