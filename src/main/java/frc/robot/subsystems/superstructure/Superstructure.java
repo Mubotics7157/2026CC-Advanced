@@ -34,7 +34,6 @@ public class Superstructure extends SubsystemBase {
     private double shootingVelocityRadPerSec = SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC;
     private double shootingHoodAngleRad = SuperstructureConstants.SHOOTER_HOOD_ANGLE_RAD;
     private boolean shotReadyToFeed = true;
-    private boolean shotRequiresOwnHubActive = true;
 
     // "Dumb mode": when active and SHOOTING, bypass tolerance/setpoint gating and feed
     // immediately regardless of whether the hood, flywheels, and targeting solution have
@@ -88,7 +87,6 @@ public class Superstructure extends SubsystemBase {
         Logger.recordOutput(
                 "Superstructure/ShootingHoodAngleDeg", Math.toDegrees(shootingHoodAngleRad));
         Logger.recordOutput("Superstructure/ShotReadyToFeed", shotReadyToFeed);
-        Logger.recordOutput("Superstructure/ShotRequiresOwnHubActive", shotRequiresOwnHubActive);
         Logger.recordOutput("Superstructure/ShooterTuningOverride", shooterTuningOverride);
 
         Logger.recordOutput("Superstructure/TuningMode", Constants.kTuningMode);
@@ -265,36 +263,22 @@ public class Superstructure extends SubsystemBase {
         desiredGoal = null;
     }
 
+    /** Supplies the active shot solution. Feeding depends on shooter and aim readiness only. */
     public void setShootingRequest(
             double velocityRadPerSec, double hoodAngleRad, boolean readyToFeed) {
-        setShootingRequest(velocityRadPerSec, hoodAngleRad, readyToFeed, true);
-    }
-
-    /**
-     * Supplies the active shot solution and selects whether feeding requires our Hub to be active.
-     * Ferry shots do not score in the Hub, so they pass {@code false} for that requirement.
-     */
-    public void setShootingRequest(
-            double velocityRadPerSec,
-            double hoodAngleRad,
-            boolean readyToFeed,
-            boolean requiresOwnHubActive) {
         shootingVelocityRadPerSec = velocityRadPerSec;
         shootingHoodAngleRad = hoodAngleRad;
         shotReadyToFeed = readyToFeed;
-        shotRequiresOwnHubActive = requiresOwnHubActive;
     }
 
     public void clearShootingRequest() {
         shootingVelocityRadPerSec = SuperstructureConstants.SHOOTER_VELOCITY_RAD_PER_SEC;
         shootingHoodAngleRad = SuperstructureConstants.SHOOTER_HOOD_ANGLE_RAD;
         shotReadyToFeed = true;
-        shotRequiresOwnHubActive = true;
     }
 
     private boolean canFeedShot() {
-        return (!shotRequiresOwnHubActive || ownHubActive)
-                && (dumbModeEnabled || (shotReadyToFeed && feedingLatched));
+        return dumbModeEnabled || (shotReadyToFeed && feedingLatched);
     }
 
     /**

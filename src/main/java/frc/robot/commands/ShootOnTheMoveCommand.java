@@ -71,8 +71,7 @@ public class ShootOnTheMoveCommand extends Command {
         superstructure.setShootingRequest(
                 solution.shooterVelocityRadPerSec(),
                 solution.hoodAngleRad(),
-                solution.readyToFeed(),
-                !allianceCornerFerry);
+                solution.readyToFeed());
 
         double throttle = throttleSupplier.getAsDouble() * DriveConstants.kDriveMaxSpeed;
         double strafe = strafeSupplier.getAsDouble() * DriveConstants.kDriveMaxSpeed;
