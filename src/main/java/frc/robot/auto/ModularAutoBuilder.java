@@ -61,14 +61,6 @@ public final class ModularAutoBuilder {
             return "CenterReturn2_" + pathSuffix;
         }
 
-        public String getDepotPathName() {
-            return "DepotRush_" + pathSuffix;
-        }
-
-        public String getDepotReturnPathName() {
-            return "DepotRushReturn_" + pathSuffix;
-        }
-
         public String getPreloadPathName() {
             return "PreloadRush_" + pathSuffix;
         }
@@ -80,8 +72,7 @@ public final class ModularAutoBuilder {
                     new String[] {
                         getRushPathName(),
                         getRush2PathName(),
-                        getPreloadPathName(),
-                        getDepotPathName()
+                        getPreloadPathName()
                     }) {
                 Optional<Pose2d> pathPose = AutoUtil.getChoreoStartingPose(pathName, redAlliance);
                 if (pathPose.isPresent()) return pathPose.get();
@@ -177,6 +168,8 @@ public final class ModularAutoBuilder {
     }
 
     public Command build() {
+        boolean middleDepotAuto =
+                startSide == StartSide.MIDDLE && firstIntake == IntakeLocation.DEPOT;
         Command auto =
                 Commands.sequence(
                         logState("STARTING"),
@@ -185,18 +178,23 @@ public final class ModularAutoBuilder {
                                     Pose2d pose = startSide.getPose(isRedAlliance.getAsBoolean());
                                     drive.resetOdometry(pose);
                                     Logger.recordOutput("ModularAuto/StartPose", pose);
-                                    superstructure.setGoal(Goal.DEPLOYED_IDLE);
+                                    // The middle depot route drives with the intake stowed. It
+                                    // deploys only after reaching the depot target.
+                                    superstructure.setGoal(
+                                            middleDepotAuto ? Goal.IDLE : Goal.DEPLOYED_IDLE);
                                 }),
-                        Commands.waitUntil(superstructure::atGoal)
-                                .withTimeout(DEPLOY_TIMEOUT_SECONDS));
-        boolean middleDepotAuto =
-                startSide == StartSide.MIDDLE && firstIntake == IntakeLocation.DEPOT;
+                        middleDepotAuto
+                                ? Commands.waitUntil(superstructure::atGoal)
+                                : Commands.waitUntil(superstructure::atGoal)
+                                        .withTimeout(DEPLOY_TIMEOUT_SECONDS));
 
         if (firstIntake != IntakeLocation.DO_NOTHING) {
             auto =
                     auto.andThen(
                             logState("CYCLE1_PATHS"),
-                            buildIntakeCycle(firstIntake, false),
+                            middleDepotAuto
+                                    ? buildMiddleDepotPathThenIntake()
+                                    : buildIntakeCycle(firstIntake, false),
                             logState("CYCLE1_SHOOT"),
                             middleDepotAuto ? buildShootForever() : buildShoot(firstShoot));
             if (!middleDepotAuto) {
@@ -222,13 +220,43 @@ public final class ModularAutoBuilder {
                 .withName("Modular Two Cycle Auto");
     }
 
+    private Command buildMiddleDepotPathThenIntake() {
+        Command pathToDepot =
+                PathfindingAutoAlignCommand.create(
+                        drive, () -> FieldLocation.DEPOT, isRedAlliance);
+        return Commands.sequence(
+                        pathToDepot,
+                        logState("DEPLOY_INTAKE_AT_DEPOT"),
+                        Commands.runOnce(() -> superstructure.setGoal(Goal.INTAKING)),
+                        Commands.waitUntil(superstructure::atGoal))
+                .withName("Middle Depot: Path Then Intake");
+    }
+
     private Command buildIntakeCycle(IntakeLocation location, boolean secondCycle) {
         return switch (location) {
-            case CENTER -> buildChoreoPair(
-                    secondCycle ? startSide.getRush2PathName() : startSide.getRushPathName(),
-                    secondCycle ? startSide.getReturn2PathName() : startSide.getReturnPathName());
-            case DEPOT -> buildChoreoPair(
-                    startSide.getDepotPathName(), startSide.getDepotReturnPathName());
+            case CENTER -> {
+                String outbound =
+                        secondCycle ? startSide.getRush2PathName() : startSide.getRushPathName();
+                String returning =
+                        secondCycle
+                                ? startSide.getReturn2PathName()
+                                : startSide.getReturnPathName();
+                if (trajectoryExists(outbound)) {
+                    yield buildChoreoPair(outbound, returning);
+                }
+
+                // Center trajectories are currently authored for Left and Right only. Keep the
+                // chooser usable from other start sides by pathfinding to that side's fallback
+                // collection location instead of silently skipping the intake cycle.
+                yield buildPathfindIntake(startSide.fallbackLocation)
+                        .withName("Pathfind Center Fallback: " + startSide.name());
+            }
+            case DEPOT -> {
+                // No DepotRush trajectories are deployed. Use the alliance-aware AD* target and
+                // return to the authored branch pose, as the Choreo route would have done.
+                Logger.recordOutput("ModularAuto/RouteFallback", "DEPOT_PATHFIND");
+                yield buildPathfindIntake(FieldLocation.DEPOT);
+            }
             case OUTPOST -> buildPathfindIntake(FieldLocation.OUTPOST);
             case LEFT -> buildPathfindIntake(FieldLocation.LEFT);
             case RIGHT -> buildPathfindIntake(FieldLocation.RIGHT);
