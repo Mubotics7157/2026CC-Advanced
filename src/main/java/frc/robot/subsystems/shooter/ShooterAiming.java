@@ -30,7 +30,7 @@ public final class ShooterAiming {
             boolean headingReady) {
 
         public boolean readyToFeed() {
-            return inRange && headingReady;
+            return headingReady;
         }
     }
 
@@ -90,10 +90,7 @@ public final class ShooterAiming {
                 MathUtil.angleModulus(
                         robotHeading.getRadians() - robotPose.getRotation().getRadians());
         boolean headingReady =
-                Math.abs(headingError) < ShooterSetpoints.HEADING_TOLERANCE_RAD
-                        && Math.abs(robotRelativeSpeeds.omegaRadiansPerSecond)
-                                < ShooterSetpoints.OMEGA_TOLERANCE_RAD_PER_SEC
-                        && translationSpeed < ShooterSetpoints.TRANSLATION_TOLERANCE_METERS_PER_SEC;
+                Math.abs(headingError) < ShooterSetpoints.HEADING_TOLERANCE_RAD;
         boolean inRange = allianceCornerFerry || ShooterSetpoints.isInRange(distance);
         double shooterVelocityRadPerSec =
                 allianceCornerFerry

@@ -69,11 +69,7 @@ public final class ModularAutoBuilder {
             // Routes from one start side share a branching pose. Use the first available
             // trajectory's starting pose so the branch target matches the authored paths.
             for (String pathName :
-                    new String[] {
-                        getRushPathName(),
-                        getRush2PathName(),
-                        getPreloadPathName()
-                    }) {
+                    new String[] {getRushPathName(), getRush2PathName(), getPreloadPathName()}) {
                 Optional<Pose2d> pathPose = AutoUtil.getChoreoStartingPose(pathName, redAlliance);
                 if (pathPose.isPresent()) return pathPose.get();
             }
@@ -222,8 +218,7 @@ public final class ModularAutoBuilder {
 
     private Command buildMiddleDepotPathThenIntake() {
         Command pathToDepot =
-                PathfindingAutoAlignCommand.create(
-                        drive, () -> FieldLocation.DEPOT, isRedAlliance);
+                PathfindingAutoAlignCommand.create(drive, () -> FieldLocation.DEPOT, isRedAlliance);
         return Commands.sequence(
                         pathToDepot,
                         logState("DEPLOY_INTAKE_AT_DEPOT"),
