@@ -8,7 +8,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import frc.robot.RobotState;
 import org.littletonrobotics.junction.Logger;
 
-/** Solves fixed-shooter aim heading and wheel velocity, including launch-on-the-move lookahead. */
+/** Solves the stationary fixed-shooter aim heading and wheel velocity. */
 public final class ShooterAiming {
 
     private ShooterAiming() {}
@@ -24,6 +24,8 @@ public final class ShooterAiming {
             double hoodAngleRad,
             double hoodServoPosition,
             double headingErrorRad,
+            double translationSpeedMetersPerSec,
+            double omegaRadiansPerSec,
             boolean inRange,
             boolean headingReady) {
 
@@ -51,35 +53,40 @@ public final class ShooterAiming {
 
     private static ShotSolution calculate(
             RobotState robotState, Translation2d target, boolean allianceCornerFerry) {
-        Pose2d robotPose =
-                robotState.getPredictedFieldToRobot(ShooterSetpoints.PRELAUNCH_LOOKAHEAD_SECONDS);
+        Pose2d robotPose = robotState.getLatestFieldToRobot().getValue();
         ChassisSpeeds robotRelativeSpeeds = robotState.getLatestRobotRelativeChassisSpeed();
+        Translation2d robotPosition = robotPose.getTranslation();
 
-        Translation2d shooterStart =
-                robotPose
-                        .getTranslation()
-                        .plus(
-                                ShooterSetpoints.ROBOT_TO_SHOOTER_EXIT.rotateBy(
-                                        robotPose.getRotation()));
-        Translation2d shooterVelocity =
-                calculateShooterFieldVelocity(
-                        ShooterSetpoints.ROBOT_TO_SHOOTER_EXIT, robotPose, robotRelativeSpeeds);
-
-        Translation2d compensatedShooter = shooterStart;
-        double distance = get3dShotDistance(compensatedShooter, target);
-        double timeOfFlight = getTimeOfFlightSeconds(distance, allianceCornerFerry);
-
-        for (int i = 0; i < ShooterSetpoints.LAUNCH_LOOKAHEAD_ITERATIONS; i++) {
-            compensatedShooter = shooterStart.plus(shooterVelocity.times(timeOfFlight));
-            distance = get3dShotDistance(compensatedShooter, target);
-            timeOfFlight = getTimeOfFlightSeconds(distance, allianceCornerFerry);
-        }
-
-        Translation2d shooterToTarget = target.minus(compensatedShooter);
-        Rotation2d fieldShotAngle = new Rotation2d(shooterToTarget.getX(), shooterToTarget.getY());
+        // The shooter exit is offset from the robot center. Solve for the final heading and exit
+        // point together so the commanded heading points the shooter at the target.
         Rotation2d robotHeading =
-                fieldShotAngle.minus(
-                        new Rotation2d(ShooterSetpoints.ROBOT_SHOOTING_YAW_OFFSET_RAD));
+                new Rotation2d(
+                                target.getX() - robotPosition.getX(),
+                                target.getY() - robotPosition.getY())
+                        .minus(new Rotation2d(ShooterSetpoints.ROBOT_SHOOTING_YAW_OFFSET_RAD));
+        Translation2d aimedShooterPosition = robotPosition;
+        for (int i = 0; i < 5; i++) {
+            aimedShooterPosition =
+                    robotPosition.plus(
+                            ShooterSetpoints.ROBOT_TO_SHOOTER_EXIT.rotateBy(robotHeading));
+            Translation2d shooterToTarget = target.minus(aimedShooterPosition);
+            robotHeading =
+                    new Rotation2d(shooterToTarget.getX(), shooterToTarget.getY())
+                            .minus(
+                                    new Rotation2d(
+                                            ShooterSetpoints.ROBOT_SHOOTING_YAW_OFFSET_RAD));
+        }
+        aimedShooterPosition =
+                robotPosition.plus(ShooterSetpoints.ROBOT_TO_SHOOTER_EXIT.rotateBy(robotHeading));
+        Translation2d currentShooterPosition =
+                robotPosition.plus(
+                        ShooterSetpoints.ROBOT_TO_SHOOTER_EXIT.rotateBy(robotPose.getRotation()));
+        double distance = get3dShotDistance(aimedShooterPosition, target);
+        double timeOfFlight = getTimeOfFlightSeconds(distance, allianceCornerFerry);
+        double translationSpeed =
+                Math.hypot(
+                        robotRelativeSpeeds.vxMetersPerSecond,
+                        robotRelativeSpeeds.vyMetersPerSecond);
 
         double headingError =
                 MathUtil.angleModulus(
@@ -87,7 +94,9 @@ public final class ShooterAiming {
         boolean headingReady =
                 Math.abs(headingError) < ShooterSetpoints.HEADING_TOLERANCE_RAD
                         && Math.abs(robotRelativeSpeeds.omegaRadiansPerSecond)
-                                < ShooterSetpoints.OMEGA_TOLERANCE_RAD_PER_SEC;
+                                < ShooterSetpoints.OMEGA_TOLERANCE_RAD_PER_SEC
+                        && translationSpeed
+                                < ShooterSetpoints.TRANSLATION_TOLERANCE_METERS_PER_SEC;
         boolean inRange = allianceCornerFerry || ShooterSetpoints.isInRange(distance);
         double shooterVelocityRadPerSec =
                 allianceCornerFerry
@@ -101,8 +110,8 @@ public final class ShooterAiming {
         ShotSolution solution =
                 new ShotSolution(
                         target,
-                        shooterStart,
-                        compensatedShooter,
+                        currentShooterPosition,
+                        aimedShooterPosition,
                         robotHeading,
                         distance,
                         timeOfFlight,
@@ -110,6 +119,8 @@ public final class ShooterAiming {
                         hoodAngleRad,
                         ShooterConstants.hoodAngleToServoPosition(hoodAngleRad),
                         headingError,
+                        translationSpeed,
+                        robotRelativeSpeeds.omegaRadiansPerSecond,
                         inRange,
                         headingReady);
         log(solution);
@@ -120,22 +131,6 @@ public final class ShooterAiming {
         return ferry
                 ? ShooterSetpoints.ALLIANCE_CORNER_FERRY_FLIGHT_TIME_SECONDS.get()
                 : ShooterSetpoints.getTimeOfFlightSeconds(distanceMeters);
-    }
-
-    private static Translation2d calculateShooterFieldVelocity(
-            Translation2d shooterOffsetRobotFrame,
-            Pose2d robotPose,
-            ChassisSpeeds robotRelativeSpeeds) {
-        double pointVxRobot =
-                robotRelativeSpeeds.vxMetersPerSecond
-                        - robotRelativeSpeeds.omegaRadiansPerSecond
-                                * shooterOffsetRobotFrame.getY();
-        double pointVyRobot =
-                robotRelativeSpeeds.vyMetersPerSecond
-                        + robotRelativeSpeeds.omegaRadiansPerSecond
-                                * shooterOffsetRobotFrame.getX();
-
-        return new Translation2d(pointVxRobot, pointVyRobot).rotateBy(robotPose.getRotation());
     }
 
     private static double get3dShotDistance(Translation2d shooterPosition, Translation2d target) {
@@ -160,6 +155,10 @@ public final class ShooterAiming {
         Logger.recordOutput("Shooter/Aiming/HoodAngleDeg", Math.toDegrees(solution.hoodAngleRad()));
         Logger.recordOutput("Shooter/Aiming/HoodServoPosition", solution.hoodServoPosition());
         Logger.recordOutput("Shooter/Aiming/HeadingErrorRad", solution.headingErrorRad());
+        Logger.recordOutput(
+                "Shooter/Aiming/TranslationSpeedMetersPerSec",
+                solution.translationSpeedMetersPerSec());
+        Logger.recordOutput("Shooter/Aiming/OmegaRadiansPerSec", solution.omegaRadiansPerSec());
         Logger.recordOutput("Shooter/Aiming/InRange", solution.inRange());
         Logger.recordOutput("Shooter/Aiming/HeadingReady", solution.headingReady());
         Logger.recordOutput("Shooter/Aiming/ReadyToFeed", solution.readyToFeed());

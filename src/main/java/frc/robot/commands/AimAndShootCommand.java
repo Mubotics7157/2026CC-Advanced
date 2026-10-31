@@ -9,15 +9,12 @@ import frc.robot.subsystems.drive.DriveSubsystem;
 import frc.robot.subsystems.shooter.ShooterAiming;
 import frc.robot.subsystems.superstructure.Superstructure;
 import frc.robot.subsystems.superstructure.Superstructure.Goal;
-import java.util.function.DoubleSupplier;
 
-/** Spins up, aims the chassis, and feeds only when the fixed drum shooter is on solution. */
-public class ShootOnTheMoveCommand extends Command {
+/** Stops translation, aims the chassis, and feeds only when the fixed shooter is on solution. */
+public class AimAndShootCommand extends Command {
     private final DriveSubsystem driveSubsystem;
     private final RobotState robotState;
     private final Superstructure superstructure;
-    private final DoubleSupplier throttleSupplier;
-    private final DoubleSupplier strafeSupplier;
     private final boolean allianceCornerFerry;
 
     private final SwerveRequest.FieldCentricFacingAngle driveWithHeading =
@@ -25,27 +22,21 @@ public class ShootOnTheMoveCommand extends Command {
                     .withDeadband(DriveConstants.kDriveMaxSpeed * 0.05)
                     .withDriveRequestType(SwerveModule.DriveRequestType.Velocity);
 
-    public ShootOnTheMoveCommand(
+    public AimAndShootCommand(
             DriveSubsystem driveSubsystem,
             RobotState robotState,
-            Superstructure superstructure,
-            DoubleSupplier throttleSupplier,
-            DoubleSupplier strafeSupplier) {
-        this(driveSubsystem, robotState, superstructure, throttleSupplier, strafeSupplier, false);
+            Superstructure superstructure) {
+        this(driveSubsystem, robotState, superstructure, false);
     }
 
-    public ShootOnTheMoveCommand(
+    public AimAndShootCommand(
             DriveSubsystem driveSubsystem,
             RobotState robotState,
             Superstructure superstructure,
-            DoubleSupplier throttleSupplier,
-            DoubleSupplier strafeSupplier,
             boolean allianceCornerFerry) {
         this.driveSubsystem = driveSubsystem;
         this.robotState = robotState;
         this.superstructure = superstructure;
-        this.throttleSupplier = throttleSupplier;
-        this.strafeSupplier = strafeSupplier;
         this.allianceCornerFerry = allianceCornerFerry;
 
         driveWithHeading.HeadingController.setPID(
@@ -54,7 +45,7 @@ public class ShootOnTheMoveCommand extends Command {
                 DriveConstants.kHeadingControllerD);
 
         addRequirements(driveSubsystem, superstructure);
-        setName(allianceCornerFerry ? "Alliance Corner Ferry" : "Shoot On The Move");
+        setName(allianceCornerFerry ? "Alliance Corner Ferry" : "Aim and Shoot at Hub");
     }
 
     @Override
@@ -73,15 +64,10 @@ public class ShootOnTheMoveCommand extends Command {
                 solution.hoodAngleRad(),
                 solution.readyToFeed());
 
-        double throttle = throttleSupplier.getAsDouble() * DriveConstants.kDriveMaxSpeed;
-        double strafe = strafeSupplier.getAsDouble() * DriveConstants.kDriveMaxSpeed;
-        double throttleFieldFrame = robotState.isRedAlliance() ? -throttle : throttle;
-        double strafeFieldFrame = robotState.isRedAlliance() ? -strafe : strafe;
-
         driveSubsystem.setControl(
                 driveWithHeading
-                        .withVelocityX(throttleFieldFrame)
-                        .withVelocityY(strafeFieldFrame)
+                        .withVelocityX(0.0)
+                        .withVelocityY(0.0)
                         .withTargetDirection(solution.robotHeading()));
     }
 

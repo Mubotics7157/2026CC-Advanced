@@ -8,7 +8,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.RobotContainer;
-import frc.robot.commands.ShootOnTheMoveCommand;
+import frc.robot.commands.AimAndShootCommand;
 import frc.robot.factories.AutoFactory;
 import frc.robot.lib.rebuilt.FieldLocation;
 import frc.robot.subsystems.superstructure.Superstructure;
@@ -329,7 +329,7 @@ public class AutoModeSelector {
             return Commands.none();
         }
 
-        return new ShootOnTheMoveCommand(drive, state, superstructure, () -> 0.0, () -> 0.0)
+        return new AimAndShootCommand(drive, state, superstructure)
                 .withTimeout(AUTO_SHOOT_DWELL_SECONDS)
                 .withName("Auto: Stationary Hub Shot");
     }

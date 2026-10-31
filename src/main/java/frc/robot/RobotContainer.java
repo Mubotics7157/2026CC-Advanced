@@ -14,7 +14,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.auto.AutoModeSelector;
 import frc.robot.commands.DriveCharacterizationCommands;
 import frc.robot.commands.DriveMaintainingHeadingCommand;
-import frc.robot.commands.ShootOnTheMoveCommand;
+import frc.robot.commands.AimAndShootCommand;
 import frc.robot.commands.ShooterTuningCommands;
 import frc.robot.controlboard.ControlBoard;
 import frc.robot.factories.AutoFactory;
@@ -200,21 +200,17 @@ public class RobotContainer {
         controlBoard
                 .getWantShoot()
                 .whileTrue(
-                        new ShootOnTheMoveCommand(
+                        new AimAndShootCommand(
                                 driveSubsystem,
                                 robotState,
-                                superstructure,
-                                controlBoard::getThrottle,
-                                controlBoard::getStrafe));
+                                superstructure));
         controlBoard
                 .getWantAllianceCornerFerry()
                 .whileTrue(
-                        new ShootOnTheMoveCommand(
+                        new AimAndShootCommand(
                                 driveSubsystem,
                                 robotState,
                                 superstructure,
-                                controlBoard::getThrottle,
-                                controlBoard::getStrafe,
                                 true));
 
         // POV Right: toggle "dumb mode" — while active, SHOOTING bypasses hood and flywheel

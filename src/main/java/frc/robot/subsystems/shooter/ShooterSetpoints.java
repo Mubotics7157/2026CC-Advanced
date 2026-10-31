@@ -51,10 +51,9 @@ public final class ShooterSetpoints {
     /** Add this if the drum exit is not aligned with robot +X. */
     public static final double ROBOT_SHOOTING_YAW_OFFSET_RAD = 0.0;
 
-    public static final double PRELAUNCH_LOOKAHEAD_SECONDS = 0.05;
-    public static final int LAUNCH_LOOKAHEAD_ITERATIONS = 4;
     public static final double HEADING_TOLERANCE_RAD = Units.degreesToRadians(2.0);
     public static final double OMEGA_TOLERANCE_RAD_PER_SEC = Units.degreesToRadians(12.0);
+    public static final double TRANSLATION_TOLERANCE_METERS_PER_SEC = 0.10;
 
     /** Distance (meters) to drum wheel velocity (RPM). Replace these with characterized data. */
     public static final InterpolatingTreeMap SHOOTER_VELOCITY_RPM_MAP =
@@ -76,7 +75,7 @@ public final class ShooterSetpoints {
                     .put(5.0, Units.degreesToRadians(53.0))
                     .put(6.0, Units.degreesToRadians(62.0));
 
-    /** Distance (meters) to flight time (seconds). Used for shoot-on-the-move lookahead. */
+    /** Distance (meters) to flight time (seconds), used by the shot solution. */
     public static final InterpolatingTreeMap TIME_OF_FLIGHT_SECONDS_MAP =
             new InterpolatingTreeMap()
                     .put(1.5, 0.45)
