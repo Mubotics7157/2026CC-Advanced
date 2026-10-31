@@ -62,7 +62,13 @@ public final class ModularAutoBuilder {
         }
 
         public String getPreloadPathName() {
-            return "PreloadRush_" + pathSuffix;
+            return switch (this) {
+                case LEFT -> "PreloadRush_LEFT";
+                case MIDDLE -> "PreloadRush_MIDDLE";
+                // There is no authored right-side preload trajectory. Callers should use the
+                // right-side pathfinding fallback instead of trying to load a nonexistent file.
+                case RIGHT -> "PreloadRush_RIGHT";
+            };
         }
 
         public Pose2d getPose(boolean redAlliance) {
@@ -70,6 +76,7 @@ public final class ModularAutoBuilder {
             // trajectory's starting pose so the branch target matches the authored paths.
             for (String pathName :
                     new String[] {getRushPathName(), getRush2PathName(), getPreloadPathName()}) {
+                if (pathName.isBlank()) continue;
                 Optional<Pose2d> pathPose = AutoUtil.getChoreoStartingPose(pathName, redAlliance);
                 if (pathPose.isPresent()) return pathPose.get();
             }
@@ -174,10 +181,13 @@ public final class ModularAutoBuilder {
                                     Pose2d pose = startSide.getPose(isRedAlliance.getAsBoolean());
                                     drive.resetOdometry(pose);
                                     Logger.recordOutput("ModularAuto/StartPose", pose);
-                                    // The middle depot route drives with the intake stowed. It
-                                    // deploys only after reaching the depot target.
+                                    // Depot and preload routes drive with the intake stowed, then
+                                    // deploy after reaching their first path target.
+                                    boolean preloadAuto = firstIntake == IntakeLocation.PRELOAD;
                                     superstructure.setGoal(
-                                            middleDepotAuto ? Goal.IDLE : Goal.DEPLOYED_IDLE);
+                                            middleDepotAuto || preloadAuto
+                                                    ? Goal.IDLE
+                                                    : Goal.DEPLOYED_IDLE);
                                 }),
                         middleDepotAuto
                                 ? Commands.waitUntil(superstructure::atGoal)
@@ -255,11 +265,26 @@ public final class ModularAutoBuilder {
             case OUTPOST -> buildPathfindIntake(FieldLocation.OUTPOST);
             case LEFT -> buildPathfindIntake(FieldLocation.LEFT);
             case RIGHT -> buildPathfindIntake(FieldLocation.RIGHT);
-            case PRELOAD -> Commands.sequence(
-                    followOrLogMissing(startSide.getPreloadPathName(), "PRELOAD"),
-                    buildBranchReset());
+            case PRELOAD -> buildPreloadPathThenDeploy();
             case DO_NOTHING -> Commands.none();
         };
+    }
+
+    private Command buildPreloadPathThenDeploy() {
+        String pathName = startSide.getPreloadPathName();
+        Command path =
+                pathName.isBlank()
+                        ? PathfindingAutoAlignCommand.create(
+                                drive, () -> startSide.fallbackLocation, isRedAlliance)
+                        : followOrLogMissing(pathName, "PRELOAD");
+        return Commands.sequence(
+                        path,
+                        logState("DEPLOY_INTAKE_AFTER_PRELOAD_PATH"),
+                        Commands.runOnce(() -> superstructure.setGoal(Goal.DEPLOYED_IDLE)),
+                        Commands.waitUntil(superstructure::atGoal)
+                                .withTimeout(DEPLOY_TIMEOUT_SECONDS),
+                        buildBranchReset())
+                .withName("Preload Path Then Deploy: " + startSide.name());
     }
 
     private Command buildChoreoPair(String outbound, String returning) {
