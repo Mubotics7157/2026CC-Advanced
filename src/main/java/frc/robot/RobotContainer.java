@@ -12,9 +12,9 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.auto.AutoModeSelector;
+import frc.robot.commands.AimAndShootCommand;
 import frc.robot.commands.DriveCharacterizationCommands;
 import frc.robot.commands.DriveMaintainingHeadingCommand;
-import frc.robot.commands.AimAndShootCommand;
 import frc.robot.commands.ShooterTuningCommands;
 import frc.robot.controlboard.ControlBoard;
 import frc.robot.factories.AutoFactory;
@@ -199,19 +199,11 @@ public class RobotContainer {
                 .onFalse(Commands.runOnce(() -> shooter.setHoodExtendOverride(false)));
         controlBoard
                 .getWantShoot()
-                .whileTrue(
-                        new AimAndShootCommand(
-                                driveSubsystem,
-                                robotState,
-                                superstructure));
+                .whileTrue(new AimAndShootCommand(driveSubsystem, robotState, superstructure));
         controlBoard
                 .getWantAllianceCornerFerry()
                 .whileTrue(
-                        new AimAndShootCommand(
-                                driveSubsystem,
-                                robotState,
-                                superstructure,
-                                true));
+                        new AimAndShootCommand(driveSubsystem, robotState, superstructure, true));
 
         // POV Right: toggle "dumb mode" — while active, SHOOTING bypasses hood and flywheel
         // setpoint checks and feeds immediately once the robot has moved into position.

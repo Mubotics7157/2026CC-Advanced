@@ -72,9 +72,7 @@ public final class ShooterAiming {
             Translation2d shooterToTarget = target.minus(aimedShooterPosition);
             robotHeading =
                     new Rotation2d(shooterToTarget.getX(), shooterToTarget.getY())
-                            .minus(
-                                    new Rotation2d(
-                                            ShooterSetpoints.ROBOT_SHOOTING_YAW_OFFSET_RAD));
+                            .minus(new Rotation2d(ShooterSetpoints.ROBOT_SHOOTING_YAW_OFFSET_RAD));
         }
         aimedShooterPosition =
                 robotPosition.plus(ShooterSetpoints.ROBOT_TO_SHOOTER_EXIT.rotateBy(robotHeading));
@@ -95,8 +93,7 @@ public final class ShooterAiming {
                 Math.abs(headingError) < ShooterSetpoints.HEADING_TOLERANCE_RAD
                         && Math.abs(robotRelativeSpeeds.omegaRadiansPerSecond)
                                 < ShooterSetpoints.OMEGA_TOLERANCE_RAD_PER_SEC
-                        && translationSpeed
-                                < ShooterSetpoints.TRANSLATION_TOLERANCE_METERS_PER_SEC;
+                        && translationSpeed < ShooterSetpoints.TRANSLATION_TOLERANCE_METERS_PER_SEC;
         boolean inRange = allianceCornerFerry || ShooterSetpoints.isInRange(distance);
         double shooterVelocityRadPerSec =
                 allianceCornerFerry

@@ -23,9 +23,7 @@ public class AimAndShootCommand extends Command {
                     .withDriveRequestType(SwerveModule.DriveRequestType.Velocity);
 
     public AimAndShootCommand(
-            DriveSubsystem driveSubsystem,
-            RobotState robotState,
-            Superstructure superstructure) {
+            DriveSubsystem driveSubsystem, RobotState robotState, Superstructure superstructure) {
         this(driveSubsystem, robotState, superstructure, false);
     }
 

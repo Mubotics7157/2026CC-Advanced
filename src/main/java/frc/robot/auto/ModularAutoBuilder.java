@@ -8,8 +8,8 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
-import frc.robot.commands.PathfindingAutoAlignCommand;
 import frc.robot.commands.AimAndShootCommand;
+import frc.robot.commands.PathfindingAutoAlignCommand;
 import frc.robot.factories.AutoFactory;
 import frc.robot.lib.rebuilt.FieldLocation;
 import frc.robot.subsystems.drive.DriveSubsystem;
@@ -309,8 +309,7 @@ public final class ModularAutoBuilder {
         return Commands.sequence(
                         Commands.runOnce(() -> superstructure.setGoal(Goal.SHOOTING)),
                         moveToShot,
-                        new AimAndShootCommand(
-                                drive, robotState, superstructure)
+                        new AimAndShootCommand(drive, robotState, superstructure)
                                 .withTimeout(SHOOT_SECONDS),
                         Commands.runOnce(() -> superstructure.setGoal(Goal.DEPLOYED_IDLE)))
                 .withName("Shoot: " + position.name());
