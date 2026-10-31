@@ -89,8 +89,7 @@ public final class ShooterAiming {
         double headingError =
                 MathUtil.angleModulus(
                         robotHeading.getRadians() - robotPose.getRotation().getRadians());
-        boolean headingReady =
-                Math.abs(headingError) < ShooterSetpoints.HEADING_TOLERANCE_RAD;
+        boolean headingReady = Math.abs(headingError) < ShooterSetpoints.HEADING_TOLERANCE_RAD;
         boolean inRange = allianceCornerFerry || ShooterSetpoints.isInRange(distance);
         double shooterVelocityRadPerSec =
                 allianceCornerFerry
