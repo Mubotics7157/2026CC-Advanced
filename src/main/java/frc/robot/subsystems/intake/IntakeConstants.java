@@ -20,7 +20,7 @@ public final class IntakeConstants {
 
     // Replace these preliminary positions, gains, and motion constraints after mechanism tuning.
     public static final double ARM_STOWED_POSITION_RAD = 0.0;
-    public static final double ARM_DEPLOYED_POSITION_RAD = Units.rotationsToRadians(0.31);
+    public static final double ARM_DEPLOYED_POSITION_RAD = Units.rotationsToRadians(0.34);
     public static final double ARM_MIN_POSITION_RAD =
             Math.min(ARM_STOWED_POSITION_RAD, ARM_DEPLOYED_POSITION_RAD);
     public static final double ARM_MAX_POSITION_RAD =
