@@ -2,6 +2,7 @@ package frc.robot.commands;
 
 import com.ctre.phoenix6.swerve.SwerveModule;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.Timer;
@@ -45,25 +46,19 @@ public class DriveMaintainingHeadingCommand extends Command {
     private final DoubleSupplier mThrottleSupplier;
     private final DoubleSupplier mStrafeSupplier;
     private final DoubleSupplier mTurnSupplier;
-    private final SlewRateLimiter throttleLimiter =
-            new SlewRateLimiter(
-                    DriveConstants.kMaxXAccelerationMetersPerSecondSquared
-                            / DriveConstants.kDriveMaxSpeed);
-    private final SlewRateLimiter strafeLimiter =
-            new SlewRateLimiter(
-                    DriveConstants.kMaxYAccelerationMetersPerSecondSquared
-                            / DriveConstants.kDriveMaxSpeed);
     private final SlewRateLimiter turnLimiter =
             new SlewRateLimiter(
                     DriveConstants.kMaxAngularSpeedRadiansPerSecondSquared
                             / DriveConstants.kDriveMaxAngularRate);
     private Optional<Rotation2d> mHeadingSetpoint = Optional.empty();
     private double mJoystickLastTouched = -1;
+    private double lastTranslationX;
+    private double lastTranslationY;
+    private double lastTranslationUpdateTime;
 
     private final SwerveRequest.FieldCentric driveNoHeading =
             new SwerveRequest.FieldCentric()
-                    .withDeadband(
-                            DriveConstants.kDriveMaxSpeed * 0.05) // Add a 5% deadband in open loop
+                    .withDeadband(DriveConstants.kDriveMaxSpeed * 0.05)
                     .withRotationalDeadband(
                             DriveConstants.kDriveMaxAngularRate * Constants.kSteerJoystickDeadband)
                     .withDriveRequestType(SwerveModule.DriveRequestType.Velocity);
@@ -75,22 +70,46 @@ public class DriveMaintainingHeadingCommand extends Command {
     @Override
     public void initialize() {
         mHeadingSetpoint = Optional.empty();
-        throttleLimiter.reset(0.0);
-        strafeLimiter.reset(0.0);
-        turnLimiter.reset(0.0);
+        var measuredFieldSpeeds = mRobotState.getLatestMeasuredFieldRelativeChassisSpeeds();
+        lastTranslationX = measuredFieldSpeeds.vxMetersPerSecond;
+        lastTranslationY = measuredFieldSpeeds.vyMetersPerSecond;
+        lastTranslationUpdateTime = Timer.getFPGATimestamp();
+        turnLimiter.reset(
+                MathUtil.clamp(
+                        measuredFieldSpeeds.omegaRadiansPerSecond
+                                / DriveConstants.kDriveMaxAngularRate,
+                        -1.0,
+                        1.0));
+    }
+
+    /** Limits the combined translation vector to the configured acceleration. */
+    private void limitTranslationAcceleration(double requestedX, double requestedY) {
+        double now = Timer.getFPGATimestamp();
+        double elapsed = Math.max(0.0, Math.min(now - lastTranslationUpdateTime, 0.05));
+        lastTranslationUpdateTime = now;
+
+        double deltaX = requestedX - lastTranslationX;
+        double deltaY = requestedY - lastTranslationY;
+        double deltaMagnitude = Math.hypot(deltaX, deltaY);
+        double maxDelta = DriveConstants.kMaxAccelerationMetersPerSecondSquared * elapsed;
+        if (deltaMagnitude > maxDelta && deltaMagnitude > 0.0) {
+            double scale = maxDelta / deltaMagnitude;
+            deltaX *= scale;
+            deltaY *= scale;
+        }
+
+        lastTranslationX += deltaX;
+        lastTranslationY += deltaY;
     }
 
     @Override
     public void execute() {
-        double throttle =
-                throttleLimiter.calculate(mThrottleSupplier.getAsDouble())
-                        * DriveConstants.kDriveMaxSpeed;
-        double strafe =
-                strafeLimiter.calculate(mStrafeSupplier.getAsDouble())
-                        * DriveConstants.kDriveMaxSpeed;
+        double throttle = mThrottleSupplier.getAsDouble() * DriveConstants.kDriveMaxSpeed;
+        double strafe = mStrafeSupplier.getAsDouble() * DriveConstants.kDriveMaxSpeed;
         double turnFieldFrame = turnLimiter.calculate(mTurnSupplier.getAsDouble());
         double throttleFieldFrame = mRobotState.isRedAlliance() ? -throttle : throttle;
         double strafeFieldFrame = mRobotState.isRedAlliance() ? -strafe : strafe;
+        limitTranslationAcceleration(throttleFieldFrame, strafeFieldFrame);
         if (Math.abs(turnFieldFrame) > Constants.kSteerJoystickDeadband) {
             mJoystickLastTouched = Timer.getFPGATimestamp();
         }
@@ -102,8 +121,8 @@ public class DriveMaintainingHeadingCommand extends Command {
                                 > Math.toRadians(10))) {
             mDrivetrain.setControl(
                     (driveNoHeading
-                            .withVelocityX(throttleFieldFrame)
-                            .withVelocityY(strafeFieldFrame)
+                            .withVelocityX(lastTranslationX)
+                            .withVelocityY(lastTranslationY)
                             .withRotationalRate(
                                     turnFieldFrame * DriveConstants.kDriveMaxAngularRate)));
             mHeadingSetpoint = Optional.empty();
@@ -118,8 +137,8 @@ public class DriveMaintainingHeadingCommand extends Command {
             Logger.recordOutput("DriveMaintainHeading/mHeadingSetpoint", mHeadingSetpoint.get());
             mDrivetrain.setControl(
                     driveWithHeading
-                            .withVelocityX(throttleFieldFrame)
-                            .withVelocityY(strafeFieldFrame)
+                            .withVelocityX(lastTranslationX)
+                            .withVelocityY(lastTranslationY)
                             .withTargetDirection(mHeadingSetpoint.get()));
             Logger.recordOutput("DriveMaintainHeading/Mode", "Heading");
             Logger.recordOutput(
