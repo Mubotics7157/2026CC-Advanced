@@ -311,6 +311,7 @@ public class DriveSubsystem extends SubsystemBase {
         private volatile PathPlannerTrajectory trajectory = null;
         private volatile Timer timer = null;
         private Notifier notifier;
+        private double previousSetpointTimeSeconds;
 
         boolean hasSetPriority = false;
 
@@ -328,6 +329,7 @@ public class DriveSubsystem extends SubsystemBase {
             // while that trajectory remains active.
             if (t != null) {
                 prevSetpoint = getCurrentSetpoint();
+                previousSetpointTimeSeconds = RobotTime.getTimestampSeconds();
             }
             trajectory = t;
             timer.reset();
@@ -344,6 +346,15 @@ public class DriveSubsystem extends SubsystemBase {
             PathPlannerTrajectory traj = trajectory;
 
             if (traj == null) return;
+
+            double setpointTimeSeconds = RobotTime.getTimestampSeconds();
+            double setpointDtSeconds =
+                    Math.max(
+                            LOOP_PERIOD / 4.0,
+                            Math.min(
+                                    setpointTimeSeconds - previousSetpointTimeSeconds,
+                                    LOOP_PERIOD * 2.0));
+            previousSetpointTimeSeconds = setpointTimeSeconds;
 
             if (traj.isStayStoppedTrajectory()) {
                 SwerveSetpoint stopped = buildStoppedSetpoint(prevSetpoint);
@@ -377,9 +388,10 @@ public class DriveSubsystem extends SubsystemBase {
             // seeded from measured state at startup and on stop.)
             SwerveSetpoint generated =
                     swerveSetpointGenerator.generateSetpoint(
-                            prevSetpoint, desiredSpeeds, LOOP_PERIOD);
+                            prevSetpoint, desiredSpeeds, setpointDtSeconds);
             prevSetpoint = generated;
 
+            Logger.recordOutput("PathPlanner/SetpointDtSeconds", setpointDtSeconds);
             Logger.recordOutput("PathPlanner/SetpointSpeeds", generated.robotRelativeSpeeds());
             Logger.recordOutput("PathPlanner/SetpointStates", generated.moduleStates());
             generatedSetpointRequest.setSetpoint(generated);

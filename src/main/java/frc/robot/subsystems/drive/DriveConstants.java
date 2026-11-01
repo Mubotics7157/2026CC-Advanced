@@ -50,6 +50,10 @@ public class DriveConstants {
                     .in(MetersPerSecond);
 
     public static final double kMaxAccelerationMetersPerSecondSquared = 10.0;
+
+    /** Teleop acceleration target, kept below the modeled friction limit for a crisp response. */
+    public static final double kTeleopMaxAccelerationMetersPerSecondSquared = 12.0;
+
     public static final double kMaxXAccelerationMetersPerSecondSquared = 10.0;
     public static final double kMaxYAccelerationMetersPerSecondSquared = 10.0;
     public static final double kMaxAngularSpeedRadiansPerSecondSquared = 20.0;

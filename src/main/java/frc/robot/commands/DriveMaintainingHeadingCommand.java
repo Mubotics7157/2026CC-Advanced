@@ -95,7 +95,7 @@ public class DriveMaintainingHeadingCommand extends Command {
         double deltaX = requestedX - lastTranslationX;
         double deltaY = requestedY - lastTranslationY;
         double deltaMagnitude = Math.hypot(deltaX, deltaY);
-        double maxDelta = DriveConstants.kMaxAccelerationMetersPerSecondSquared * elapsed;
+        double maxDelta = DriveConstants.kTeleopMaxAccelerationMetersPerSecondSquared * elapsed;
         if (deltaMagnitude > maxDelta && deltaMagnitude > 0.0) {
             double scale = maxDelta / deltaMagnitude;
             deltaX *= scale;
