@@ -65,8 +65,8 @@ public final class ModularAutoBuilder {
             return switch (this) {
                 case LEFT -> "PreloadRush_LEFT";
                 case MIDDLE -> "PreloadRush_MIDDLE";
-                // There is no authored right-side preload trajectory. Callers should use the
-                // right-side pathfinding fallback instead of trying to load a nonexistent file.
+                    // There is no authored right-side preload trajectory. Callers should use the
+                    // right-side pathfinding fallback instead of trying to load a nonexistent file.
                 case RIGHT -> "PreloadRush_RIGHT";
             };
         }
