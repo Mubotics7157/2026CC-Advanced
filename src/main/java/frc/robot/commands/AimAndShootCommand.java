@@ -20,6 +20,7 @@ public class AimAndShootCommand extends Command {
     private final SwerveRequest.FieldCentricFacingAngle driveWithHeading =
             new SwerveRequest.FieldCentricFacingAngle()
                     .withDeadband(DriveConstants.kDriveMaxSpeed * 0.05)
+                    .withForwardPerspective(SwerveRequest.ForwardPerspectiveValue.BlueAlliance)
                     .withDriveRequestType(SwerveModule.DriveRequestType.Velocity);
 
     public AimAndShootCommand(

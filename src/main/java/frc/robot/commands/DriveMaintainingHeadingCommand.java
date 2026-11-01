@@ -61,15 +61,19 @@ public class DriveMaintainingHeadingCommand extends Command {
                     .withDeadband(DriveConstants.kDriveMaxSpeed * 0.05)
                     .withRotationalDeadband(
                             DriveConstants.kDriveMaxAngularRate * Constants.kSteerJoystickDeadband)
+                    .withForwardPerspective(SwerveRequest.ForwardPerspectiveValue.BlueAlliance)
                     .withDriveRequestType(SwerveModule.DriveRequestType.Velocity);
     private final SwerveRequest.FieldCentricFacingAngle driveWithHeading =
             new SwerveRequest.FieldCentricFacingAngle()
                     .withDeadband(DriveConstants.kDriveMaxSpeed * 0.05)
+                    .withForwardPerspective(SwerveRequest.ForwardPerspectiveValue.BlueAlliance)
                     .withDriveRequestType(SwerveModule.DriveRequestType.Velocity);
 
     @Override
     public void initialize() {
-        mHeadingSetpoint = Optional.empty();
+        mHeadingSetpoint =
+                Optional.of(mRobotState.getLatestFieldToRobot().getValue().getRotation());
+        mJoystickLastTouched = -1.0;
         var measuredFieldSpeeds = mRobotState.getLatestMeasuredFieldRelativeChassisSpeeds();
         lastTranslationX = measuredFieldSpeeds.vxMetersPerSecond;
         lastTranslationY = measuredFieldSpeeds.vyMetersPerSecond;

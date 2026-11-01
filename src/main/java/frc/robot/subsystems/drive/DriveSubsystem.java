@@ -482,7 +482,7 @@ public class DriveSubsystem extends SubsystemBase {
 
         AutoBuilder.configure(
                 () -> robotState.getLatestFieldToRobot().getValue(),
-                (pose) -> {},
+                this::resetOdometry,
                 () -> robotState.getLatestFusedRobotRelativeChassisSpeed(),
                 controller,
                 robotConfig,
@@ -519,6 +519,10 @@ public class DriveSubsystem extends SubsystemBase {
 
     public void resetOdometry(Pose2d pose) {
         io.resetOdometry(pose);
+        // Keep path following and heading hold in sync with Phoenix immediately. Waiting for the
+        // next odometry callback can leave a newly initialized auto using the previous heading.
+        robotState.addOdometryMeasurement(RobotTime.getTimestampSeconds(), pose);
+        Logger.recordOutput("Drive/PoseReset", pose);
     }
 
     public Consumer<PathPlannerTrajectory> getController() {
